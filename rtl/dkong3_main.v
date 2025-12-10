@@ -33,6 +33,7 @@ module dkong3_main
    output  [9:0]O_DMAD_A,
    output  [7:0]O_DMAD_D,
    output       O_DMAD_CE,
+   output       O_DMAD_WE,
 
    output       O_OBJ_RQn,
    output       O_OBJ_RDn,
@@ -231,10 +232,12 @@ wire       W_DMAS_CE;
 wire  [9:0]W_DMAD_A;
 wire  [7:0]W_DMAD_D;
 wire       W_DMAD_CE;
+wire       W_DMAD_WE;
 
 dkong3_dma sprite_dma
 (
    .I_CLK(~I_MCPU_CLK),
+   .I_RSTn(I_MCPU_RESETn),
    .I_DMA_TRIG(W_3E_Q[5]),
    .I_DMA_DS(W_DMAS_D),
 
@@ -242,12 +245,14 @@ dkong3_dma sprite_dma
    .O_DMA_CES(W_DMAS_CE),
    .O_DMA_AD(W_DMAD_A),
    .O_DMA_DD(W_DMAD_D),
-   .O_DMA_CED(W_DMAD_CE)
+   .O_DMA_CED(W_DMAD_CE),
+   .O_DMA_WE(W_DMAD_WE)
 );
 
 assign O_DMAD_A  = W_DMAD_A;
 assign O_DMAD_D  = W_DMAD_D;
 assign O_DMAD_CE = W_DMAD_CE;
+assign O_DMAD_WE = W_DMAD_WE;
 
 //---------------------------
 // Inputs

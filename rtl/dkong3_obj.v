@@ -36,6 +36,7 @@ module dkong3_obj
    input   [9:0]I_OBJ_DMA_A,
    input   [7:0]I_OBJ_DMA_D,
    input        I_OBJ_DMA_CE,
+   input        I_OBJ_DMA_WE,
    input  [17:0]I_DLADDR,
    input   [7:0]I_DLDATA,
    input        I_DLWR,
@@ -104,7 +105,7 @@ ram_1024_8_8 U_6PR
    .I_ADDRA(I_OBJ_DMA_A),
    .I_DA(I_OBJ_DMA_D),
    .I_CEA(I_OBJ_DMA_CE),
-   .I_WEA(1'b1),
+   .I_WEA(I_OBJ_DMA_WE),
    .O_DA(),
 
    // B Port
@@ -367,4 +368,3 @@ end
 assign O_OBJ_DO = W_OBJ_DO;
 
 endmodule
-

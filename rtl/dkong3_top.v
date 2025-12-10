@@ -97,6 +97,7 @@ wire        W_MCPU_WRn;
 wire   [9:0]W_DMAD_A;
 wire   [7:0]W_DMAD_D;
 wire        W_DMAD_CE;
+wire        W_DMAD_WE;
 
 wire        W_OBJ_RQn;
 wire        W_OBJ_RDn;
@@ -132,6 +133,7 @@ dkong3_main maincpu
    .O_DMAD_A(W_DMAD_A),
    .O_DMAD_D(W_DMAD_D),
    .O_DMAD_CE(W_DMAD_CE),
+   .O_DMAD_WE(W_DMAD_WE),
    .O_OBJ_RQn(W_OBJ_RQn),
    .O_OBJ_RDn(W_OBJ_RDn),
    .O_OBJ_WRn(W_OBJ_WRn),
@@ -174,6 +176,7 @@ dkong3_video vid
    .I_OBJDMA_A(W_DMAD_A),
    .I_OBJDMA_D(W_DMAD_D),
    .I_OBJDMA_CE(W_DMAD_CE),
+   .I_OBJDMA_WE(W_DMAD_WE),
    .I_DLADDR(dn_addr), 
    .I_DLDATA(dn_data),
    .I_DLWR(dn_wr),
@@ -218,5 +221,4 @@ assign O_SOUND_DAT = W_APU_SAMPLE;
 
 
 endmodule
-
 
