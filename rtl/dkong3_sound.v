@@ -135,7 +135,7 @@ begin
    reg prev4EQ0;
    prev4EQ0 <= I_4E_Q[0];
    
-   if (~prev4EQ0 & I_4E_Q[0]) begin
+   if (prev4EQ0 & ~I_4E_Q[0]) begin
       sub1inp0 <= I_MCPU_DO_REG;
    end
 
@@ -160,7 +160,7 @@ begin
    reg prev4EQ1;
    prev4EQ1 <= I_4E_Q[1];
    
-   if (~prev4EQ1 & I_4E_Q[1]) begin
+   if (prev4EQ1 & ~I_4E_Q[1]) begin
       sub1inp1 <= I_MCPU_DO_REG;
    end
 
@@ -250,7 +250,7 @@ begin
    reg prev4EQ2;
    prev4EQ2 <= I_4E_Q[2];
    
-   if (~prev4EQ2 & I_4E_Q[2]) begin
+   if (prev4EQ2 & ~I_4E_Q[2]) begin
       sub2inp <= I_MCPU_DO_REG;
    end
 
