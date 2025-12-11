@@ -63,6 +63,10 @@ wire  [15:0]W_SUB1_ADDR;
 wire   [7:0]W_SUB1_DBO;
 wire        W_SUB1_RnW;
 wire  [15:0]W_APU1_SAMPLE;
+wire        W_SUB1_DMC_REQ;
+wire  [15:0]W_SUB1_DMC_ADDR;
+wire   [7:0]W_SUB1_DMC_DATA;
+wire        W_SUB1_DMC_ACK;
 
 dkong3_sub sub1
 (
@@ -78,6 +82,10 @@ dkong3_sub sub1
    .O_SUB_ADDR(W_SUB1_ADDR),
    .O_SUB_DB0(W_SUB1_DBO),
    .O_SUB_RNW(W_SUB1_RnW),
+   .O_DMC_REQ(W_SUB1_DMC_REQ),
+   .O_DMC_ADDR(W_SUB1_DMC_ADDR),
+   .I_DMC_ACK(W_SUB1_DMC_ACK),
+   .I_DMC_DATA(W_SUB1_DMC_DATA),
    .O_SAMPLE(W_APU1_SAMPLE)
 );
 
@@ -97,6 +105,37 @@ wire       W_SUB1ROM_OEn = (W_SUB1_ADDR[15] == 1'b0);
 // ~phi2 not working as chip enable
 SUB1_ROM sub1rom(I_SUBCLK, W_SUB1_ADDR[12:0], 1'b0, W_SUB1ROM_OEn, W_SUB1ROM_DO, 
                  I_CLK_24M, I_DLADDR, I_DLDATA, I_DLWR);
+
+// DMC DMA ROM access for sub CPU 1
+wire [7:0] W_SUB1_DMC_ROM_DO;
+reg  [7:0] sub1_dma_data;
+reg        sub1_dma_ack;
+reg        sub1_dma_wait;
+reg [12:0] sub1_dma_addr;
+
+SUB1_ROM sub1rom_dmc(I_SUBCLK, sub1_dma_addr, 1'b0, 1'b0, W_SUB1_DMC_ROM_DO,
+                     I_CLK_24M, I_DLADDR, I_DLDATA, I_DLWR);
+
+always @(posedge I_SUBCLK) begin
+   sub1_dma_ack <= 1'b0;
+
+   if (~I_SUB_RESETn) begin
+      sub1_dma_wait <= 1'b0;
+      sub1_dma_data <= 8'h00;
+   end else begin
+      if (sub1_dma_wait) begin
+         sub1_dma_data <= W_SUB1_DMC_ROM_DO;
+         sub1_dma_ack <= 1'b1;
+         sub1_dma_wait <= 1'b0;
+      end else if (W_SUB1_DMC_REQ) begin
+         sub1_dma_wait <= 1'b1;
+         sub1_dma_addr <= W_SUB1_DMC_ADDR[12:0];
+      end
+   end
+end
+
+assign W_SUB1_DMC_DATA = sub1_dma_data;
+assign W_SUB1_DMC_ACK  = sub1_dma_ack;
 
 //----------
 // RAM @ 5K
@@ -178,6 +217,10 @@ wire  [15:0]W_SUB2_ADDR;
 wire   [7:0]W_SUB2_DBO;
 wire        W_SUB2_RnW;
 wire  [15:0]W_APU2_SAMPLE;
+wire        W_SUB2_DMC_REQ;
+wire  [15:0]W_SUB2_DMC_ADDR;
+wire   [7:0]W_SUB2_DMC_DATA;
+wire        W_SUB2_DMC_ACK;
 
 dkong3_sub sub2
 (
@@ -193,6 +236,10 @@ dkong3_sub sub2
    .O_SUB_ADDR(W_SUB2_ADDR),
    .O_SUB_DB0(W_SUB2_DBO),
    .O_SUB_RNW(W_SUB2_RnW),
+   .O_DMC_REQ(W_SUB2_DMC_REQ),
+   .O_DMC_ADDR(W_SUB2_DMC_ADDR),
+   .I_DMC_ACK(W_SUB2_DMC_ACK),
+   .I_DMC_DATA(W_SUB2_DMC_DATA),
    .O_SAMPLE(W_APU2_SAMPLE)
 );
 
@@ -212,6 +259,37 @@ wire       W_SUB2ROM_OEn = (W_SUB2_ADDR[15] == 1'b0);
 // ~phi2 not working as chip enable
 SUB2_ROM sub2rom(I_SUBCLK, W_SUB2_ADDR[12:0], 1'b0, W_SUB2ROM_OEn, W_SUB2ROM_DO, 
                  I_CLK_24M, I_DLADDR, I_DLDATA, I_DLWR);
+
+// DMC DMA ROM access for sub CPU 2
+wire [7:0] W_SUB2_DMC_ROM_DO;
+reg  [7:0] sub2_dma_data;
+reg        sub2_dma_ack;
+reg        sub2_dma_wait;
+reg [12:0] sub2_dma_addr;
+
+SUB2_ROM sub2rom_dmc(I_SUBCLK, sub2_dma_addr, 1'b0, 1'b0, W_SUB2_DMC_ROM_DO,
+                     I_CLK_24M, I_DLADDR, I_DLDATA, I_DLWR);
+
+always @(posedge I_SUBCLK) begin
+   sub2_dma_ack <= 1'b0;
+
+   if (~I_SUB_RESETn) begin
+      sub2_dma_wait <= 1'b0;
+      sub2_dma_data <= 8'h00;
+   end else begin
+      if (sub2_dma_wait) begin
+         sub2_dma_data <= W_SUB2_DMC_ROM_DO;
+         sub2_dma_ack <= 1'b1;
+         sub2_dma_wait <= 1'b0;
+      end else if (W_SUB2_DMC_REQ) begin
+         sub2_dma_wait <= 1'b1;
+         sub2_dma_addr <= W_SUB2_DMC_ADDR[12:0];
+      end
+   end
+end
+
+assign W_SUB2_DMC_DATA = sub2_dma_data;
+assign W_SUB2_DMC_ACK  = sub2_dma_ack;
 
 //------------------------
 // RAM @ 6F for Sub CPU 2

@@ -22,6 +22,12 @@ module dkong3_sub
    output  [7:0]O_SUB_DB0,
    output       O_SUB_RNW,
 
+   // DMC DMA handshake
+   output       O_DMC_REQ,
+   output [15:0]O_DMC_ADDR,
+   input        I_DMC_ACK,
+   input   [7:0]I_DMC_DATA,
+
    output signed [15:0]O_SAMPLE
 );
 
@@ -62,6 +68,8 @@ T65 cpu(
 assign O_SUB_ADDR = cpu_addr;
 assign O_SUB_DB0  = cpu_dout;
 assign O_SUB_RNW  = cpu_rnw;
+assign O_DMC_REQ  = W_DMC_REQ;
+assign O_DMC_ADDR = W_DMC_ADDR;
 
 // CPU Data Bus (Data In)
 wire   [7:0]W_CPU_DBUS = (cpu_addr == 16'h4015 & cpu_rnw) ? apu_dout : I_SUB_DBI;
@@ -74,6 +82,8 @@ wire   [7:0]W_CPU_DBUS = (cpu_addr == 16'h4015 & cpu_rnw) ? apu_dout : I_SUB_DBI
 wire apu_cs = cpu_addr >= 'h4000 && cpu_addr < 'h4018;
 wire [7:0]apu_dout;
 wire [15:0] sample_apu;
+wire        W_DMC_REQ;
+wire [15:0] W_DMC_ADDR;
 
 APU apu(
    .MMC5           (1'b0),
@@ -90,10 +100,10 @@ APU apu(
    .DOUT           (apu_dout),
    .audio_channels (5'b11111),
    .Sample         (sample_apu),
-   .DmaReq         (/*apu_dma_request*/), // TODO: DMA
-   .DmaAck         (/*apu_dma_ack*/),
-   .DmaAddr        (/*apu_dma_addr*/),
-   .DmaData        (/*from_data_bus*/),
+   .DmaReq         (W_DMC_REQ),
+   .DmaAck         (I_DMC_ACK),
+   .DmaAddr        (W_DMC_ADDR),
+   .DmaData        (I_DMC_DATA),
    .odd_or_even    (I_ODD_OR_EVEN),
    .IRQ            (apu_irq)
 );
