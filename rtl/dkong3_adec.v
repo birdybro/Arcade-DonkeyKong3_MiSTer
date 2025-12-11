@@ -74,14 +74,27 @@ end
 // CPU can clear the NMI via register @ 3E.
 //-----------------------------------------------
 
-wire  W_VBLK = ~I_VBLK_n;
 reg   NMI_n;
-always@(posedge W_VBLK or negedge W_3E_Q[4])
+reg   vblk_d1, vblk_d2;
+always@(posedge I_CLK12M or negedge I_RESET_n)
 begin
-   if(~W_3E_Q[4])
-      NMI_n <= 1'b1;
-   else
-      NMI_n <= 1'b0;
+   if(I_RESET_n == 1'b0) begin
+      vblk_d1 <= 1'b0;
+      vblk_d2 <= 1'b0;
+      NMI_n   <= 1'b1;
+   end else begin
+      vblk_d1 <= ~I_VBLK_n;
+      vblk_d2 <= vblk_d1;
+
+      // Clear NMI when the CPU writes 7E84H (bit 4 low).
+      if(~W_3E_Q[4]) begin
+         NMI_n <= 1'b1;
+      end
+      // Assert NMI on rising edge of VBLANK (start of frame).
+      else if(vblk_d1 & ~vblk_d2) begin
+         NMI_n <= 1'b0;
+      end
+   end
 end
 
 assign O_NMI_n = NMI_n;

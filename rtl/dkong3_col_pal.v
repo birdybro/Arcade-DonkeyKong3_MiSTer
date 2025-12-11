@@ -46,12 +46,18 @@ wire   [8:0]W_1B2C_D = {I_CPAL_SEL,W_3ML_Y[5:0],I_CMPBLKn};
 reg    [8:0]W_1B2C_Q;
 wire   W_1B2C_RST  =  I_CMPBLKn | W_1B2C_Q[0];
 
-always@(posedge I_CLK_6M or negedge W_1B2C_RST)
+reg    clk6m_q;
+wire   ce_6m = ~clk6m_q & I_CLK_6M;
+
+always@(posedge I_CLK_24M or negedge W_1B2C_RST)
 begin
    if(W_1B2C_RST == 1'b0)
       W_1B2C_Q <= 1'b0;
-   else
+   else begin
+      clk6m_q <= I_CLK_6M;
+      if(ce_6m)
       W_1B2C_Q <= W_1B2C_D;
+   end
 end
 
 //--------------------------------------------------------------
@@ -75,4 +81,3 @@ CLUT_PROM_512_4 prom1c(I_CLK_24M, W_PAL_AB, W_1C_DO,
 assign {O_R, O_G, O_B} = {W_1D_DO,W_1C_DO};
 
 endmodule
-

@@ -23,9 +23,17 @@ module dkong3_sound
 );
 
 
-reg [7:0]I_MCPU_DO_REG;
+// Synchronize main CPU data and control strobes into the sub CPU clock domain.
+reg [7:0] mcpu_do_meta, mcpu_do_sync, I_MCPU_DO_REG;
+reg [3:0] mcpu_ctrl_meta, mcpu_ctrl_sync;
+
 always @(posedge I_SUBCLK) begin
-   I_MCPU_DO_REG<=I_MCPU_DO;
+   mcpu_do_meta   <= I_MCPU_DO;
+   mcpu_do_sync   <= mcpu_do_meta;
+   I_MCPU_DO_REG  <= mcpu_do_sync;
+
+   mcpu_ctrl_meta <= I_4E_Q;
+   mcpu_ctrl_sync <= mcpu_ctrl_meta;
 end
 //--------
 // Clocks
@@ -128,14 +136,14 @@ end
 
 reg   [7:0]sub1inp0;
 wire  [7:0]W_SUB1INP0_DO;
+reg         prev4EQ0;
 
 always@(posedge I_SUBCLK)
 begin
 
-   reg prev4EQ0;
-   prev4EQ0 <= I_4E_Q[0];
+   prev4EQ0 <= mcpu_ctrl_sync[0];
    
-   if (~prev4EQ0 & I_4E_Q[0]) begin
+   if (~prev4EQ0 & mcpu_ctrl_sync[0]) begin
       sub1inp0 <= I_MCPU_DO_REG;
    end
 
@@ -153,14 +161,14 @@ assign W_SUB1INP0_DO = (W_SUB1_ADDR == 16'h4016) & W_SUB1_RnW ? sub1inp0 : 8'h00
 
 reg   [7:0]sub1inp1;
 wire  [7:0]W_SUB1INP1_DO;
+reg         prev4EQ1;
 
 always@(posedge I_SUBCLK)
 begin
 
-   reg prev4EQ1;
-   prev4EQ1 <= I_4E_Q[1];
+   prev4EQ1 <= mcpu_ctrl_sync[1];
    
-   if (~prev4EQ1 & I_4E_Q[1]) begin
+   if (~prev4EQ1 & mcpu_ctrl_sync[1]) begin
       sub1inp1 <= I_MCPU_DO_REG;
    end
 
@@ -243,14 +251,14 @@ end
 
 reg   [7:0]sub2inp;
 wire  [7:0]W_SUB2INP_DO;
+reg         prev4EQ2;
 
 always@(posedge I_SUBCLK)
 begin
 
-   reg prev4EQ2;
-   prev4EQ2 <= I_4E_Q[2];
+   prev4EQ2 <= mcpu_ctrl_sync[2];
    
-   if (~prev4EQ2 & I_4E_Q[2]) begin
+   if (~prev4EQ2 & mcpu_ctrl_sync[2]) begin
       sub2inp <= I_MCPU_DO_REG;
    end
 

@@ -63,8 +63,11 @@ assign O_CLK      = H_CNT_r[0];
 
 reg    V_CLK = 1'b0;
 reg    H_BLANK = 1'b0;
+reg    V_CLK_q = 1'b0;
+wire   V_CLK_rise = ~V_CLK_q & V_CLK;
 always@(posedge O_CLK)
 begin
+  V_CLK_q <= V_CLK;
   case(H_CNT[9:0])
     H_BL_P: H_BLANK <= 1;
     H_BL_W: H_BLANK <= 0;
@@ -78,26 +81,24 @@ assign H_SYNCn  = ~V_CLK;
 assign H_BLANKn = ~H_BLANK;
 
 reg    [8:0]V_CNT_r;
-always@(posedge V_CLK or negedge I_RST_n)
-begin
-   if(I_RST_n == 1'b0)
-      V_CNT_r <= 0 ;
-   else
-      V_CNT_r <= (V_CNT_r == 255)? 9'd504 : V_CNT_r+1'b1 ;
-end
-
 reg    V_BLANK;
-always@(posedge V_CLK or negedge I_RST_n)
+
+always@(posedge O_CLK or negedge I_RST_n)
 begin
-   if(I_RST_n == 1'b0)begin
+   if(I_RST_n == 1'b0) begin
+      V_CNT_r <= 0 ;
       V_BLANK <= 0 ;
    end
    else begin
-      case(V_CNT_r[8:0])
-         V_BL_P: V_BLANK <= 1;
-         V_BL_W: V_BLANK <= 0;
-        default:;
-      endcase
+      if(V_CLK_rise) begin
+         V_CNT_r <= (V_CNT_r == 255)? 9'd504 : V_CNT_r+1'b1 ;
+
+         case(V_CNT_r[8:0])
+            V_BL_P: V_BLANK <= 1;
+            V_BL_W: V_BLANK <= 0;
+            default:;
+         endcase
+      end
    end
 end
 

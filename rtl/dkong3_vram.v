@@ -179,12 +179,19 @@ assign O_VID[1] = W_4M_Y[3];
 //-----------------------
 
 reg    W_VRAMBUSY;
+reg    hcnt2_q, hcnt6_q, hcnt9_q;
+wire   hcnt2_rise = ~hcnt2_q & I_H_CNT[2];
+wire   hcnt6_rise = ~hcnt6_q & I_H_CNT[6];
 
-always@(posedge I_H_CNT[2] or negedge I_H_CNT[9])
+always@(posedge I_CLK_24M)
 begin
+   hcnt2_q <= I_H_CNT[2];
+   hcnt6_q <= I_H_CNT[6];
+   hcnt9_q <= I_H_CNT[9];
+
    if(I_H_CNT[9] == 1'b0)
       W_VRAMBUSY <= 1'b1;
-   else
+   else if(hcnt2_rise)
       W_VRAMBUSY <= I_H_CNT[4]&I_H_CNT[5]&I_H_CNT[6]&I_H_CNT[7];
 end
 
@@ -197,15 +204,14 @@ assign O_VRAMBUSYn = ~W_VRAMBUSY;
 
 reg    W_ESBLK;
 
-always@(posedge I_H_CNT[6] or negedge I_H_CNT[9])
+always@(posedge I_CLK_24M)
 begin
    if(I_H_CNT[9] == 1'b0)
       W_ESBLK <= 1'b0;
-   else
+   else if(hcnt6_rise)
       W_ESBLK <= ~I_H_CNT[7];
 end
 
 assign O_ESBLKn = ~W_ESBLK;
 
 endmodule
-

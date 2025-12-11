@@ -73,6 +73,10 @@ logic_74xx139 U_5F2
 
 reg    [3:0]W_5F2_Q;
 always@(negedge I_CLK_24M) W_5F2_Q <= W_5F2_QB;
+reg    [3:0]W_5F2_Q_prev;
+wire         ce_5f2_0 = ~W_5F2_Q_prev[0] & W_5F2_Q[0];
+wire         ce_5f2_2 = ~W_5F2_Q_prev[2] & W_5F2_Q[2];
+always@(posedge I_CLK_24M) W_5F2_Q_prev <= W_5F2_Q;
 
 //----------  FLIP ----------------------------------------------------
 wire   W_FLIP_1  = ~I_FLIPn ^ flip_screen;            // INV
@@ -123,7 +127,10 @@ wire        W_obj_CS = W_AB_SEL ? 1'b0     : I_OBJ_WRn & I_OBJ_RDn;
 
 //-------  VFC_CNT[7:0] ------------------------------------------------
 reg    [7:0]W_VFC_CNT;
-always@(negedge I_H_CNT[9]) W_VFC_CNT <= I_VF_CNT;
+reg          hcnt9_q;
+wire         hcnt9_fall = hcnt9_q & ~I_H_CNT[9];
+always@(posedge I_CLK_24M) hcnt9_q <= I_H_CNT[9];
+always@(posedge I_CLK_24M) if(hcnt9_fall) W_VFC_CNT <= I_VF_CNT;
 
 //------  PARTS 6N
 reg    [7:0]W_6N_Q;
@@ -192,10 +199,10 @@ wire   [8:0]W_78J_Q = W_78J_A + W_78J_B;
 wire   [7:0]W_8H_D  = W_78J_Q[7:0];
 
 reg    [7:0]W_8H_Q;
-always@(posedge W_5F2_Q[0]) W_8H_Q <= W_8H_D;
+always@(posedge I_CLK_24M) if(ce_5f2_0) W_8H_Q <= W_8H_D;
 
 reg    [7:0]W_6J_Q;
-always@(posedge W_5F2_Q[2]) W_6J_Q <= W_HD[7:0];
+always@(posedge I_CLK_24M) if(ce_5f2_2) W_6J_Q <= W_HD[7:0];
 
 wire   [7:0]W_6K_D = {W_6J_Q[7],I_CMPBLKn,~I_H_CNT[9],
                       ~(I_H_CNT[9]|W_FLIP_2),W_6J_Q[3:0]};
@@ -209,16 +216,19 @@ end
 
 assign O_L_CMPBLKn = W_6K_Q[6];
 
-wire   W_8N_Q;
+reg    W_8N_Q;
 
-logic_74xx109 U_8N
-(
-   .CLK(W_5F2_Q[0]),
-   .RST(I_H_CNT[9]),
-   .I_J(~W_RAM_7M_DOBn[0]),
-   .I_K(1'b1),
-   .O_Q(W_8N_Q)
-);
+always@(posedge I_CLK_24M or posedge I_H_CNT[9])
+begin
+   if(I_H_CNT[9]) begin
+      W_8N_Q <= 1'b0;
+   end else if(ce_5f2_0) begin
+      if(~W_RAM_7M_DOBn[0])
+         W_8N_Q <= ~W_8N_Q; // toggle when J=1,K=1
+      else
+         W_8N_Q <= 1'b0;    // reset when J=0,K=1
+   end
+end
 
 wire   W_6F  = ~(W_8H_Q[4]&W_8H_Q[5]&W_8H_Q[6]&W_8H_Q[7]);
 wire   W_5J  = W_8N_Q|W_6F;
@@ -367,4 +377,3 @@ end
 assign O_OBJ_DO = W_OBJ_DO;
 
 endmodule
-
