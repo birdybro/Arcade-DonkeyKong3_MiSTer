@@ -110,27 +110,40 @@ SUB1_ROM sub1rom(I_SUBCLK, W_SUB1_ADDR[12:0], 1'b0, W_SUB1ROM_OEn, W_SUB1ROM_DO,
 wire [7:0] W_SUB1_DMC_ROM_DO;
 reg  [7:0] sub1_dma_data;
 reg        sub1_dma_ack;
-reg        sub1_dma_wait;
+reg  [1:0] sub1_dma_state;
 reg [12:0] sub1_dma_addr;
 
 SUB1_ROM sub1rom_dmc(I_SUBCLK, sub1_dma_addr, 1'b0, 1'b0, W_SUB1_DMC_ROM_DO,
                      I_CLK_24M, I_DLADDR, I_DLDATA, I_DLWR);
 
 always @(posedge I_SUBCLK) begin
-   sub1_dma_ack <= 1'b0;
+   case (sub1_dma_state)
+      2'd0: begin
+         sub1_dma_ack <= 1'b0;
+         if (W_SUB1_DMC_REQ) begin
+            sub1_dma_addr  <= W_SUB1_DMC_ADDR[12:0];
+            sub1_dma_state <= 2'd1; // issue read, wait one cycle
+         end
+      end
+      2'd1: begin
+         sub1_dma_data  <= W_SUB1_DMC_ROM_DO;
+         sub1_dma_ack   <= 1'b1;     // present data
+         sub1_dma_state <= 2'd2;     // hold ack until request drops
+      end
+      2'd2: begin
+         sub1_dma_ack <= 1'b1;
+         if (~W_SUB1_DMC_REQ) begin
+            sub1_dma_ack   <= 1'b0;
+            sub1_dma_state <= 2'd0;
+         end
+      end
+      default: sub1_dma_state <= 2'd0;
+   endcase
 
    if (~I_SUB_RESETn) begin
-      sub1_dma_wait <= 1'b0;
-      sub1_dma_data <= 8'h00;
-   end else begin
-      if (sub1_dma_wait) begin
-         sub1_dma_data <= W_SUB1_DMC_ROM_DO;
-         sub1_dma_ack <= 1'b1;
-         sub1_dma_wait <= 1'b0;
-      end else if (W_SUB1_DMC_REQ) begin
-         sub1_dma_wait <= 1'b1;
-         sub1_dma_addr <= W_SUB1_DMC_ADDR[12:0];
-      end
+      sub1_dma_state <= 2'd0;
+      sub1_dma_ack   <= 1'b0;
+      sub1_dma_data  <= 8'h00;
    end
 end
 
@@ -264,27 +277,40 @@ SUB2_ROM sub2rom(I_SUBCLK, W_SUB2_ADDR[12:0], 1'b0, W_SUB2ROM_OEn, W_SUB2ROM_DO,
 wire [7:0] W_SUB2_DMC_ROM_DO;
 reg  [7:0] sub2_dma_data;
 reg        sub2_dma_ack;
-reg        sub2_dma_wait;
+reg  [1:0] sub2_dma_state;
 reg [12:0] sub2_dma_addr;
 
 SUB2_ROM sub2rom_dmc(I_SUBCLK, sub2_dma_addr, 1'b0, 1'b0, W_SUB2_DMC_ROM_DO,
                      I_CLK_24M, I_DLADDR, I_DLDATA, I_DLWR);
 
 always @(posedge I_SUBCLK) begin
-   sub2_dma_ack <= 1'b0;
+   case (sub2_dma_state)
+      2'd0: begin
+         sub2_dma_ack <= 1'b0;
+         if (W_SUB2_DMC_REQ) begin
+            sub2_dma_addr  <= W_SUB2_DMC_ADDR[12:0];
+            sub2_dma_state <= 2'd1;
+         end
+      end
+      2'd1: begin
+         sub2_dma_data  <= W_SUB2_DMC_ROM_DO;
+         sub2_dma_ack   <= 1'b1;
+         sub2_dma_state <= 2'd2;
+      end
+      2'd2: begin
+         sub2_dma_ack <= 1'b1;
+         if (~W_SUB2_DMC_REQ) begin
+            sub2_dma_ack   <= 1'b0;
+            sub2_dma_state <= 2'd0;
+         end
+      end
+      default: sub2_dma_state <= 2'd0;
+   endcase
 
    if (~I_SUB_RESETn) begin
-      sub2_dma_wait <= 1'b0;
-      sub2_dma_data <= 8'h00;
-   end else begin
-      if (sub2_dma_wait) begin
-         sub2_dma_data <= W_SUB2_DMC_ROM_DO;
-         sub2_dma_ack <= 1'b1;
-         sub2_dma_wait <= 1'b0;
-      end else if (W_SUB2_DMC_REQ) begin
-         sub2_dma_wait <= 1'b1;
-         sub2_dma_addr <= W_SUB2_DMC_ADDR[12:0];
-      end
+      sub2_dma_state <= 2'd0;
+      sub2_dma_ack   <= 1'b0;
+      sub2_dma_data  <= 8'h00;
    end
 end
 
