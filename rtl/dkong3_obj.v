@@ -142,8 +142,10 @@ reg    W_7H;
 always@(posedge I_CLK_12M) W_7H <= ~(W_78P_Q[7]&W_78P_Q[6]&W_78P_Q[5]&W_78P_Q[4]);
 
 reg    [7:0]W_5L_Q;
-reg    CLK_4L;
-always@(negedge I_CLK_24M) CLK_4L = ~(I_H_CNT[0]&(~I_H_CNT[1]));
+wire   CLK_4L_int = ~(I_H_CNT[0]&(~I_H_CNT[1]));
+reg    CLK_4L_q;
+wire   CE_CLK4L = ~CLK_4L_q & CLK_4L_int;
+always@(posedge I_CLK_24M) CLK_4L_q <= CLK_4L_int;
 
 wire   W_6L = ~(W_5L_Q[6]|W_5L_Q[7]);
 wire   W_3P = ~(I_H_CNT[2]&I_H_CNT[3]&I_H_CNT[4]&I_H_CNT[5]&I_H_CNT[6]&I_H_CNT[7]&I_H_CNT[8] & W_6L);
@@ -152,10 +154,10 @@ wire   W_3P = ~(I_H_CNT[2]&I_H_CNT[3]&I_H_CNT[4]&I_H_CNT[5]&I_H_CNT[6]&I_H_CNT[7
 
 reg    W_4L_Q;
 wire   RST_4L = ~I_H_CNT[9];
-always@(posedge CLK_4L or negedge RST_4L)
+always@(posedge I_CLK_24M or negedge RST_4L)
 begin
    if(RST_4L == 0) W_4L_Q <= 1'b0;
-   else            W_4L_Q <= ~(W_7H&W_3P);
+   else if(CE_CLK4L) W_4L_Q <= ~(W_7H&W_3P);
 end
 
 wire   CLK_5L = ~(I_CLK_12M&(~I_H_CNT[9])&W_4L_Q&W_6L);
@@ -305,10 +307,10 @@ assign W_8B_B = {W_8D_Qh,W_8F_Qh,W_6L1,1'b1};
 assign W_8B_Y = W_6K_Q[7] ? W_8B_B:W_8B_A;
 
 //------  PARTS 3E & 4E  -----------------------------------------
-reg    CLK_3E;
-
-always@(negedge I_CLK_24M)
-   CLK_3E <= ~(~(I_H_CNT[0]&W_6K_Q[5])& I_CLK_12M);
+wire   CLK_3E_int = ~(~(I_H_CNT[0]&W_6K_Q[5])& I_CLK_12M);
+reg    CLK_3E_q;
+wire   CE_CLK3E = ~CLK_3E_q & CLK_3E_int;
+always@(posedge I_CLK_24M) CLK_3E_q <= CLK_3E_int;
 
 wire   [7:0]W_3E_LD_DI = W_78K_Q[7:0];
 
@@ -317,15 +319,17 @@ wire   W_3E_LD  = W_5F1_Q[1];
 
 reg    [7:0]W_3E_Q;
 
-always@(posedge CLK_3E)
+always@(posedge I_CLK_24M)
 begin
-   if(W_3E_LD == 1'b0) 
-      W_3E_Q <= W_3E_LD_DI;
-   else begin
-      if(W_3E_RST == 1'b0) 
-         W_3E_Q <= 8'b0 ;
-      else     
-         W_3E_Q <= W_3E_Q +1'b1;
+   if(CE_CLK3E) begin
+      if(W_3E_LD == 1'b0) 
+         W_3E_Q <= W_3E_LD_DI;
+      else begin
+         if(W_3E_RST == 1'b0) 
+            W_3E_Q <= 8'b0 ;
+         else     
+            W_3E_Q <= W_3E_Q +1'b1;
+      end
    end
 end
 
@@ -342,7 +346,7 @@ ram_2EH7M U_2EH_7M
    .I_ADDRA(W_RAM_2EH_AB),
    .I_DA(W_RAM_2EH_DI),
    .I_CEA(1'b1),
-   .I_WEA(~CLK_3E),
+    .I_WEA(CE_CLK3E),
    .O_DA(W_RAM_2EH_DO),
 
    // 64x9

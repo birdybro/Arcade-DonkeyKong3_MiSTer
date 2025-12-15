@@ -63,18 +63,24 @@ assign O_CLK      = H_CNT_r[0];
 
 reg    V_CLK = 1'b0;
 reg    H_BLANK = 1'b0;
+reg    H_CNT0_q = 1'b0;
+wire   CE_H = ~H_CNT0_q & H_CNT_r[0];
 reg    V_CLK_q = 1'b0;
 wire   V_CLK_rise = ~V_CLK_q & V_CLK;
-always@(posedge O_CLK)
+always@(posedge I_CLK)
 begin
-  V_CLK_q <= V_CLK;
-  case(H_CNT[9:0])
-    H_BL_P: H_BLANK <= 1;
-    H_BL_W: H_BLANK <= 0;
-    V_CL_P + H_OFFSET*2: V_CLK   <= 1;
-    V_CL_W + H_OFFSET*2: V_CLK   <= 0;
-    default:;
-  endcase
+  H_CNT0_q <= H_CNT_r[0];
+  V_CLK_q  <= V_CLK;
+
+  if(CE_H) begin
+    case(H_CNT[9:0])
+      H_BL_P: H_BLANK <= 1;
+      H_BL_W: H_BLANK <= 0;
+      V_CL_P + H_OFFSET*2: V_CLK   <= 1;
+      V_CL_W + H_OFFSET*2: V_CLK   <= 0;
+      default:;
+    endcase
+  end
 end
 
 assign H_SYNCn  = ~V_CLK;
@@ -83,13 +89,15 @@ assign H_BLANKn = ~H_BLANK;
 reg    [8:0]V_CNT_r;
 reg    V_BLANK;
 
-always@(posedge O_CLK or negedge I_RST_n)
+always@(posedge I_CLK or negedge I_RST_n)
 begin
    if(I_RST_n == 1'b0) begin
       V_CNT_r <= 0 ;
       V_BLANK <= 0 ;
+      V_CLK_q <= 0 ;
    end
    else begin
+      V_CLK_q <= V_CLK;
       if(V_CLK_rise) begin
          V_CNT_r <= (V_CNT_r == 255)? 9'd504 : V_CNT_r+1'b1 ;
 
