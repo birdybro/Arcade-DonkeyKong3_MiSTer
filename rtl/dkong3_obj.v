@@ -88,11 +88,8 @@ wire   W_FLIP_5  = ~W_FLIP_4;
 assign O_FLIP_VRAM = W_FLIP_1;
 assign O_FLIP_HV   = W_FLIP_3;
 
-//-------  DB CONTROL  ------------------------------------------------
-wire   [7:0]WI_DB = I_OBJ_WRn ? 8'h00: I_DB;
-wire   [7:0]WO_DB;
-
-//assign O_DB       = I_OBJ_RDn ? 8'h00: WO_DB;
+// Output bus unused in this core.
+assign O_DB = 8'h00;
 
 //-------------------
 // Object RAM 6P, 6R
@@ -119,11 +116,6 @@ ram_1024_8_8 U_6PR
    .I_WEB(1'b0),
    .O_DB(W_OBJ_DI)
 );
-
-//-------  AB CONTROL  ------------------------------------------------
-wire        W_AB_SEL = I_OBJ_WRn & I_OBJ_RDn & I_OBJ_RQn;
-wire   [9:0]W_obj_AB = W_AB_SEL ? {I_2PSL,I_H_CNT[8:0]} : I_AB ;
-wire        W_obj_CS = W_AB_SEL ? 1'b0     : I_OBJ_WRn & I_OBJ_RDn;
 
 //-------  VFC_CNT[7:0] ------------------------------------------------
 reg    [7:0]W_VFC_CNT;

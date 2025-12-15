@@ -116,22 +116,26 @@ VID_ROM roms3PN(I_CLK_12M, W_VRAM_AB, 1'b0, W_3PN_DO,
 // Shift register 4P
 //-------------------
 
-wire   CLK_4PN = I_H_CNT[0];
-
 wire   W_4P_Qa,W_4P_Qh;
 
 wire   [1:0]C_4P = W_4M_Y[1:0];
 wire   [7:0]I_4P = W_3PN_DO[7:0];
 reg    [7:0]reg_4P;
 
-always@(posedge CLK_4PN)
+reg    hcnt0_q;
+wire   ce_hcnt0 = ~hcnt0_q & I_H_CNT[0];
+
+always@(posedge I_CLK_24M)
 begin
-   case(C_4P)
-      2'b00: reg_4P <= reg_4P;
-      2'b10: reg_4P <= {reg_4P[6:0],1'b0};
-      2'b01: reg_4P <= {1'b0,reg_4P[7:1]};
-      2'b11: reg_4P <= I_4P;
-   endcase
+   hcnt0_q <= I_H_CNT[0];
+   if(ce_hcnt0) begin
+      case(C_4P)
+         2'b00: reg_4P <= reg_4P;
+         2'b10: reg_4P <= {reg_4P[6:0],1'b0};
+         2'b01: reg_4P <= {1'b0,reg_4P[7:1]};
+         2'b11: reg_4P <= I_4P;
+      endcase
+   end
 end
 
 assign W_4P_Qa = reg_4P[7];
@@ -147,14 +151,16 @@ wire   [1:0]C_4N = W_4M_Y[1:0];
 wire   [7:0]I_4N = W_3PN_DO[15:8];
 reg    [7:0]reg_4N;
 
-always@(posedge CLK_4PN)
+always@(posedge I_CLK_24M)
 begin
-   case(C_4N)
-      2'b00: reg_4N <= reg_4N;
-      2'b10: reg_4N <= {reg_4N[6:0],1'b0};
-      2'b01: reg_4N <= {1'b0,reg_4N[7:1]};
-      2'b11: reg_4N <= I_4N;
-   endcase
+   if(ce_hcnt0) begin
+      case(C_4N)
+         2'b00: reg_4N <= reg_4N;
+         2'b10: reg_4N <= {reg_4N[6:0],1'b0};
+         2'b01: reg_4N <= {1'b0,reg_4N[7:1]};
+         2'b11: reg_4N <= I_4N;
+      endcase
+   end
 end
 
 assign W_4N_Qa = reg_4N[7];
@@ -179,7 +185,7 @@ assign O_VID[1] = W_4M_Y[3];
 //-----------------------
 
 reg    W_VRAMBUSY;
-reg    hcnt2_q, hcnt6_q, hcnt9_q;
+reg    hcnt2_q, hcnt6_q;
 wire   hcnt2_rise = ~hcnt2_q & I_H_CNT[2];
 wire   hcnt6_rise = ~hcnt6_q & I_H_CNT[6];
 
@@ -187,7 +193,6 @@ always@(posedge I_CLK_24M)
 begin
    hcnt2_q <= I_H_CNT[2];
    hcnt6_q <= I_H_CNT[6];
-   hcnt9_q <= I_H_CNT[9];
 
    if(I_H_CNT[9] == 1'b0)
       W_VRAMBUSY <= 1'b1;
