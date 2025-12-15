@@ -70,7 +70,6 @@ wire   V_CLK_rise = ~V_CLK_q & V_CLK;
 always@(posedge I_CLK)
 begin
   H_CNT0_q <= H_CNT_r[0];
-  V_CLK_q  <= V_CLK;
 
   if(CE_H) begin
     case(H_CNT[9:0])
