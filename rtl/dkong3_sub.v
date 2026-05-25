@@ -63,8 +63,26 @@ assign O_SUB_ADDR = cpu_addr;
 assign O_SUB_DB0  = cpu_dout;
 assign O_SUB_RNW  = cpu_rnw;
 
-// CPU Data Bus (Data In)
-wire   [7:0]W_CPU_DBUS = (cpu_addr == 16'h4015 & cpu_rnw) ? apu_dout : I_SUB_DBI;
+// Shadow registers for APU reads. We need to shadow them to return the last value written in order to fix death sound sweep.
+// Note that the APU has some internal state that changes on reads, so this won't be a perfect emulation, but it should be good enough for dkong3.
+// TODO: Logic Analyzer traces of the original hardware would be needed to get this perfectly accurate relative to hardware behavior, but this should be good enough for now.
+reg [7:0] apu_shadow [0:20]; // $4000..$4014
+integer i;
+initial for (i = 0; i < 21; i = i + 1) apu_shadow[i] = 8'h00;
+
+always @(posedge I_SUBCLK) begin
+    if (I_CPU_CE & ~cpu_rnw & (cpu_addr >= 16'h4000) & (cpu_addr <= 16'h4014))
+        apu_shadow[cpu_addr[4:0]] <= cpu_dout;
+end
+
+wire is_shadow_rd = cpu_rnw
+                  & (cpu_addr >= 16'h4000)
+                  & (cpu_addr <= 16'h4014);
+
+wire   [7:0]W_CPU_DBUS =
+    (cpu_addr == 16'h4015 & cpu_rnw) ? apu_dout                  :
+    is_shadow_rd                     ? apu_shadow[cpu_addr[4:0]] :
+                                       I_SUB_DBI;
 
 
 //-----
