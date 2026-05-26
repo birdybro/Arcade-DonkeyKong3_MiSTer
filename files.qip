@@ -24,5 +24,5 @@ set_global_assignment -name VERILOG_FILE rtl/dkong3_main.v
 set_global_assignment -name VERILOG_FILE rtl/dkong3_sub.v
 set_global_assignment -name VERILOG_FILE rtl/dkong3_video.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/apu.sv
-set_global_assignment -name VHDL_FILE dpram.vhd
+set_global_assignment -name VHDL_FILE rtl/dpram.vhd
 set_global_assignment -name SYSTEMVERILOG_FILE "Arcade-DonkeyKong3.sv"

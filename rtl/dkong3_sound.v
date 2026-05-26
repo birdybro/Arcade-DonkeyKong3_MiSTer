@@ -23,9 +23,12 @@ module dkong3_sound
 );
 
 
-reg [7:0]I_MCPU_DO_REG;
+// 2-stage synchronizer for the Z80 data bus (clk_main -> I_SUBCLK domain).
+// Captured value I_MCPU_DO_REG is read on the synchronized strobe edge below.
+reg [7:0]I_MCPU_DO_S1, I_MCPU_DO_REG;
 always @(posedge I_SUBCLK) begin
-   I_MCPU_DO_REG<=I_MCPU_DO;
+   I_MCPU_DO_S1  <= I_MCPU_DO;
+   I_MCPU_DO_REG <= I_MCPU_DO_S1;
 end
 //--------
 // Clocks
@@ -100,10 +103,18 @@ SUB1_ROM sub1rom(I_SUBCLK, W_SUB1_ADDR[12:0], 1'b0, W_SUB1ROM_OEn, W_SUB1ROM_DO,
 
 //----------
 // RAM @ 5K
+// CS is just A15=0 on the real PCB, so RAM mirrors across $0000-$7FFF and
+// overlaps the APU register range. Writes to $4000-$400x land in both the
+// APU and RAM[addr & $07FF] (bus conflict); reads return the RAM byte
+// (the APU is write-only there). $4016/$4017 are driven by the LS374
+// input latches, so RAM stays quiet on those reads.
 //----------
 
 reg   [7:0]W_SUB1RAM_DO;
 wire  [7:0]W_RAM5K_DO;
+wire       W_SUB1RAM_SEL = (W_SUB1_ADDR[15] == 1'b0)
+                        & (W_SUB1_ADDR != 16'h4016)
+                        & (W_SUB1_ADDR != 16'h4017);
 
 ram_2048_8 U_5K
 (
@@ -111,13 +122,13 @@ ram_2048_8 U_5K
    .I_ADDR(W_SUB1_ADDR[10:0]),
    .I_D(W_SUB1_DBO),
    .I_CE(1'b1), // phi2 doesn't work here.
-   .I_WE(~W_SUB1_RnW & (W_SUB1_ADDR[15:14] == 2'b00)),
+   .I_WE(~W_SUB1_RnW & (W_SUB1_ADDR[15] == 1'b0)),
    .O_D(W_RAM5K_DO)
 );
 
 always@(posedge I_SUBCLK)
 begin
-   W_SUB1RAM_DO <= (W_SUB1_ADDR[15:14] == 2'b00 & W_SUB1_RnW == 1'b1) ? W_RAM5K_DO : 8'h00;
+   W_SUB1RAM_DO <= (W_SUB1RAM_SEL & W_SUB1_RnW) ? W_RAM5K_DO : 8'h00;
 end
 
 
@@ -129,16 +140,17 @@ end
 reg   [7:0]sub1inp0;
 wire  [7:0]W_SUB1INP0_DO;
 
+// 2-stage synchronizer on the strobe + edge register; capture on synced rising edge.
 always@(posedge I_SUBCLK)
 begin
+   reg q0_s1, q0_s2, q0_s3;
+   q0_s1 <= I_4E_Q[0];
+   q0_s2 <= q0_s1;
+   q0_s3 <= q0_s2;
 
-   reg prev4EQ0;
-   prev4EQ0 <= I_4E_Q[0];
-   
-   if (~prev4EQ0 & I_4E_Q[0]) begin
+   if (q0_s2 & ~q0_s3) begin
       sub1inp0 <= I_MCPU_DO_REG;
    end
-
 end
 
 
@@ -156,14 +168,14 @@ wire  [7:0]W_SUB1INP1_DO;
 
 always@(posedge I_SUBCLK)
 begin
+   reg q1_s1, q1_s2, q1_s3;
+   q1_s1 <= I_4E_Q[1];
+   q1_s2 <= q1_s1;
+   q1_s3 <= q1_s2;
 
-   reg prev4EQ1;
-   prev4EQ1 <= I_4E_Q[1];
-   
-   if (~prev4EQ1 & I_4E_Q[1]) begin
+   if (q1_s2 & ~q1_s3) begin
       sub1inp1 <= I_MCPU_DO_REG;
    end
-
 end
 
 // Input ports are mapped into the APU's range.
@@ -215,10 +227,15 @@ SUB2_ROM sub2rom(I_SUBCLK, W_SUB2_ADDR[12:0], 1'b0, W_SUB2ROM_OEn, W_SUB2ROM_DO,
 
 //------------------------
 // RAM @ 6F for Sub CPU 2
+// Same bus-conflict decoding as 5K; sub2 has no $4017 latch so RAM is
+// kept off that address too (matches MAME's nopr at $4017).
 //------------------------
 
 reg   [7:0]W_SUB2RAM_DO;
 wire  [7:0]W_RAM6F_DO;
+wire       W_SUB2RAM_SEL = (W_SUB2_ADDR[15] == 1'b0)
+                        & (W_SUB2_ADDR != 16'h4016)
+                        & (W_SUB2_ADDR != 16'h4017);
 
 ram_2048_8 U_6F
 (
@@ -226,13 +243,13 @@ ram_2048_8 U_6F
    .I_ADDR(W_SUB2_ADDR[10:0]),
    .I_D(W_SUB2_DBO),
    .I_CE(1'b1),
-   .I_WE(~W_SUB2_RnW & (W_SUB2_ADDR[15:14] == 2'b00)),
+   .I_WE(~W_SUB2_RnW & (W_SUB2_ADDR[15] == 1'b0)),
    .O_D(W_RAM6F_DO)
 );
 
 always@(posedge I_SUBCLK)
 begin
-   W_SUB2RAM_DO <= (W_SUB2_ADDR[15:14] == 2'b00 & W_SUB2_RnW == 1'b1) ? W_RAM6F_DO : 8'h00;
+   W_SUB2RAM_DO <= (W_SUB2RAM_SEL & W_SUB2_RnW) ? W_RAM6F_DO : 8'h00;
 end
 
 
@@ -246,14 +263,14 @@ wire  [7:0]W_SUB2INP_DO;
 
 always@(posedge I_SUBCLK)
 begin
+   reg q2_s1, q2_s2, q2_s3;
+   q2_s1 <= I_4E_Q[2];
+   q2_s2 <= q2_s1;
+   q2_s3 <= q2_s2;
 
-   reg prev4EQ2;
-   prev4EQ2 <= I_4E_Q[2];
-   
-   if (~prev4EQ2 & I_4E_Q[2]) begin
+   if (q2_s2 & ~q2_s3) begin
       sub2inp <= I_MCPU_DO_REG;
    end
-
 end
 
 

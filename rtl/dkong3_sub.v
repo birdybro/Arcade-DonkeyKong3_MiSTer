@@ -63,26 +63,8 @@ assign O_SUB_ADDR = cpu_addr;
 assign O_SUB_DB0  = cpu_dout;
 assign O_SUB_RNW  = cpu_rnw;
 
-// Shadow registers for APU reads. We need to shadow them to return the last value written in order to fix death sound sweep.
-// Note that the APU has some internal state that changes on reads, so this won't be a perfect emulation, but it should be good enough for dkong3.
-// TODO: Logic Analyzer traces of the original hardware would be needed to get this perfectly accurate relative to hardware behavior, but this should be good enough for now.
-reg [7:0] apu_shadow [0:20]; // $4000..$4014
-integer i;
-initial for (i = 0; i < 21; i = i + 1) apu_shadow[i] = 8'h00;
-
-always @(posedge I_SUBCLK) begin
-    if (I_CPU_CE & ~cpu_rnw & (cpu_addr >= 16'h4000) & (cpu_addr <= 16'h4014))
-        apu_shadow[cpu_addr[4:0]] <= cpu_dout;
-end
-
-wire is_shadow_rd = cpu_rnw
-                  & (cpu_addr >= 16'h4000)
-                  & (cpu_addr <= 16'h4014);
-
-wire   [7:0]W_CPU_DBUS =
-    (cpu_addr == 16'h4015 & cpu_rnw) ? apu_dout                  :
-    is_shadow_rd                     ? apu_shadow[cpu_addr[4:0]] :
-                                       I_SUB_DBI;
+// CPU Data Bus (Data In)
+wire   [7:0]W_CPU_DBUS = (cpu_addr == 16'h4015 & cpu_rnw) ? apu_dout : I_SUB_DBI;
 
 
 //-----
@@ -93,7 +75,8 @@ wire apu_cs = cpu_addr >= 'h4000 && cpu_addr < 'h4018;
 wire [7:0]apu_dout;
 wire [15:0] sample_apu;
 
-APU apu(
+// dkong3 uses neither OAM DMA (no PPU) nor DMC (no sample channel); DMA pins stubbed.
+APU apu (
    .MMC5           (1'b0),
    .clk            (I_SUBCLK),
    .PHI2           (I_PHI2),
@@ -108,12 +91,14 @@ APU apu(
    .DOUT           (apu_dout),
    .audio_channels (5'b11111),
    .Sample         (sample_apu),
-   .DmaReq         (/*apu_dma_request*/), // TODO: DMA
-   .DmaAck         (/*apu_dma_ack*/),
-   .DmaAddr        (/*apu_dma_addr*/),
-   .DmaData        (/*from_data_bus*/),
-   .odd_or_even    (I_ODD_OR_EVEN),
-   .IRQ            (apu_irq)
+   .DmaReq         (),
+   .DmaAck         (1'b0),
+   .DmaAddr        (),
+   .DmaData        (8'h00),
+   .get_or_put     (I_ODD_OR_EVEN),
+   .IRQ            (apu_irq),
+   .get_ce         (),
+   .put_ce         ()
 );
 
 wire [15:0] sample_inverted = 16'hFFFF - sample_apu;
