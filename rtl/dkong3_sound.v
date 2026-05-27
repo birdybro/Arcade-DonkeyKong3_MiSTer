@@ -30,6 +30,17 @@ always @(posedge I_SUBCLK) begin
    I_MCPU_DO_S1  <= I_MCPU_DO;
    I_MCPU_DO_REG <= I_MCPU_DO_S1;
 end
+
+// 2-stage synchronizer for the VBlank-derived NMI into the sub-CPU domain.
+// W_VBLANKn is registered on V_CLK (a divided clk_sys) and is async to
+// I_SUBCLK. T65's NMI edge detector compares a 1-stage flop against the raw
+// input, so without this sync a metastable VBlank edge can double-fire NMI
+// (NMIAct is sticky) or, less often, miss the edge.
+reg I_SUB_NMIn_S1, I_SUB_NMIn_S2;
+always @(posedge I_SUBCLK) begin
+   I_SUB_NMIn_S1 <= I_SUB_NMIn;
+   I_SUB_NMIn_S2 <= I_SUB_NMIn_S1;
+end
 //--------
 // Clocks
 //--------
@@ -70,7 +81,7 @@ wire  [15:0]W_APU1_SAMPLE;
 dkong3_sub sub1
 (
    .I_SUBCLK(I_SUBCLK),
-   .I_SUB_NMIn(I_SUB_NMIn),
+   .I_SUB_NMIn(I_SUB_NMIn_S2),
    .I_SUB_RESETn(I_SUB_RESETn),
 
    .I_SUB_DBI(W_SUB1_DBI),
@@ -194,7 +205,7 @@ wire  [15:0]W_APU2_SAMPLE;
 dkong3_sub sub2
 (
    .I_SUBCLK(I_SUBCLK),
-   .I_SUB_NMIn(I_SUB_NMIn),
+   .I_SUB_NMIn(I_SUB_NMIn_S2),
    .I_SUB_RESETn(I_SUB_RESETn),
 
    .I_SUB_DBI(W_SUB2_DBI),
