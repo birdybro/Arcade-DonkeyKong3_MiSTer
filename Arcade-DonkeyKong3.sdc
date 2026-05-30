@@ -19,3 +19,9 @@ set_max_delay -to [get_registers {*dkong3_sound:sound|I_SUB_NMIn_S1}] $sync_max
 set_max_delay -to [get_registers {*dkong3_sound:sound|*q0_s1*}] $sync_max
 set_max_delay -to [get_registers {*dkong3_sound:sound|*q1_s1*}] $sync_max
 set_max_delay -to [get_registers {*dkong3_sound:sound|*q2_s1*}] $sync_max
+
+# Reset deassertion synchronizers in dkong3_top (clk_sys reset -> clk_main /
+# clk_sub). Async-assert is intentional; recovery against the cross-PLL
+# common-period window is not a real path.
+set_false_path -to [get_registers {*dkong3_top:dkong3|cpu_resetn_s1}]
+set_false_path -to [get_registers {*dkong3_top:dkong3|sub_resetn_s1}]
