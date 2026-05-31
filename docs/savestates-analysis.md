@@ -182,26 +182,49 @@ resynchronise from new sound commands the main CPU sends. A **pragmatic savestat
 This pragmatic scope is strongly recommended for a first version; full audio-state capture can come
 later. **Be explicit in the UI/docs that sound state is not restored** if you take this path.
 
-### 3.2 Transport decision — DDR vs on-chip buffer + HPS
-PGM uses DDR (4 MB/slot) because its state is large. DK3's *pragmatic* state is only a few KB of RAM
-plus a few hundred register bits — small enough that you don't strictly need DDR:
+### 3.2 Transport decision — use the framework-native `SS` DDRAM mechanism
+> **Corrected per the added framework docs** (`mister-framework-reference/32-rom-save-state-flows.md`
+> §2.3, `11-conf-str.md`). An earlier draft proposed an HPS `ioctl_upload`/`download` `.ss` file path
+> ("Option B"); that is **not** the canonical savestate transport and should not be used. The
+> framework already provides DDRAM-backed savestate slots + automatic disk persistence.
 
-- **Option A (PGM-faithful, DDR):** port `memory_stream` + `ddr_if`/`ddr_mux` + `sys/ddr_svc.sv`,
-  drive the wrapper's `DDRAM_*` ports (currently unused), store 1 slot per DDR region. More plumbing,
-  but multi-slot and matches the reference exactly.
-- **Option B (simpler, BRAM buffer + HPS file):** keep the `ssbus`/adaptor framework for collecting
-  state, but stream the snapshot to/from the HPS over `ioctl_upload`/`ioctl_download` into a `.ss`
-  file (same mechanism the hiscore feature uses for `.nvm`), no DDR. Simplest for a small core;
-  slot count limited by file naming. **Recommended for DK3's size.**
+The MiSTer framework has a **built-in savestate channel**, opt-in via the `CONF_STR` token
+`SS<base>:<size>` (with `base`+`size` inside `[0x20000000, 0x40000000)`, `size ≤ 128 MB`):
+- The HPS allocates **exactly 4 slots**, contiguous in DDRAM: slot `i` at `ss_base + i*ss_size`.
+  (4 slots is fixed — not a core-side choice.) [C, doc 32 §2.3]
+- Each slot's first 64 bits are a control header: `[31:0]` = **change detector**, `[63:32]` = size in
+  32-bit words (excluding the header).
+- The core saves by writing **payload → size word (`base+4`) → change detector (`base+0`) LAST**. The
+  HPS polls each slot's change detector at ~1000 ms cadence and, on a delta, flushes `(size+2)*4`
+  bytes to `<root>/savestates/<Core>/<basename>_<N>.ss`. **Disk persistence is automatic** — the core
+  never touches `ioctl_upload`.
+- On core launch the HPS reloads existing `.ss` files into the DDRAM slots and forces the change
+  detectors to `0xFFFFFFFF`. Key "slot has data" off the **size word ≠ 0**, not the change detector
+  (anti-pattern A.6, doc 32 §7).
 
-Either way, reuse `ssbus_if`, `ssbus_mux`, the adaptors, and `savestate_ui.sv` unchanged.
+**This is the transport.** It replaces both of the earlier draft's options:
+- The PGM `save_state_data`/`memory_stream` streamer is essentially a custom writer into exactly this
+  DDRAM region — so the work is "drive `DDRAM_*` per the SS slot layout + change-detector protocol,"
+  not "invent a transport." Reuse the `ssbus`/adaptor framework to *collect* state, and point the
+  streamer's writes/reads at `ss_base + slot*ss_size + 8` (payload) with the header protocol above.
+- DK3 already declares `MISTER_FB`, so the DDRAM bridge is in use for the scaler framebuffer
+  (reserved at byte `0x24000000`, doc 31). Pick an `SS` region that does **not** overlap it; the
+  framework `sysmem`/`f2sdram_safe_terminator` arbitrates the core's `DDRAM_*` master against the
+  framebuffer. Confirm whether DK3's `emu` currently drives or ties `DDRAM_*` before wiring.
+
+**Critical write-ordering rule** (doc 32 §7 A.2): never bump the change detector before the payload
+and size word have committed to DDRAM, or the HPS may flush a half-written state. If the DDRAM path
+can reorder writes, fence before the detector write.
+
+Reuse `ssbus_if`, `ssbus_mux`, the adaptors, and `savestate_ui.sv` unchanged regardless.
 
 ### 3.3 Architecture for DK3
 
 ```
 savestate_ui (OSD/keys/pad) ─▶ ss_save/ss_load/ss_slot ─▶ ss_state FSM (assert I_PAUSE, drain)
                                                             │
-        streamer (DDR via memory_stream  OR  HPS via ioctl) │
+        streamer ─▶ DDRAM_* into framework SS slot          │
+        (ss_base + slot*ss_size; payload→size→detector LAST)│
                                 │ ssbus
                                 ▼ ssbus_mux(COUNT = N)
    ┌──────────────┬──────────────┬───────────────┬──────────────┬───────────────┐
@@ -217,9 +240,12 @@ Pause reuse: the savestate FSM asserts the same `I_PAUSE` you add for the Pause 
 
 ## 4. Implementation outline
 
+0. **Declare the SS region:** add `SS<base>:<size>` to `CONF_STR` (base/size inside
+   `[0x20000000, 0x40000000)`, not overlapping the `0x24000000` framebuffer region). This turns on
+   the framework's 4-slot DDRAM savestate channel + automatic `.ss` disk persistence.
 1. **Framework:** port `rtl/savestates.sv` (interface, mux, adaptors) and `rtl/savestate_ui.sv`;
-   add to `files.qip`. Choose transport (Option B recommended): port `memory_stream`/`ddr_if` only
-   if going DDR.
+   add to `files.qip`. The streamer writes/reads the framework SS DDRAM slots (header protocol in
+   §3.2); reuse PGM's `save_state_data`/`memory_stream` as the streamer, pointed at the SS region.
 2. **Main CPU state:** either (a) replace `T80as`→`tv80s` and use the existing `tv80_auto_ss.sv` +
    `auto_save_adaptor2`, or (b) hand-add savestate read/write of the T80 VHDL registers. Decide
    early — it drives most of the risk.
@@ -235,8 +261,9 @@ Pause reuse: the savestate FSM asserts the same `I_PAUSE` you add for the Pause 
    trick (unlike PGM's M68k).
 7. **UI + CONF_STR:** add the savestate slot menu and the gamepad chord / OSD save-load, wire
    `savestate_ui` outputs to the FSM.
-8. **Storage:** Option B — reuse the hiscore-style `ioctl_upload`/`download` path with a savestate
-   `ioctl_index`; Option A — drive the `DDRAM_*` ports.
+8. **Storage:** none to build — the `SS<base>:<size>` token (step 0) makes the HPS persist each
+   changed slot to `.ss` automatically. The core only drives `DDRAM_*` into the slot region with the
+   payload→size→change-detector-LAST write order (doc 32 §2.3, §7 A.2).
 
 ---
 
@@ -259,7 +286,7 @@ using the BRAM-buffer/HPS transport — then iterate toward full fidelity.
 
 ### Files touched (estimate)
 - `rtl/savestates.sv`, `rtl/savestate_ui.sv` *(new — ported)*
-- `rtl/memory_stream.*` / `ddr_if` *(new — only if Option A/DDR)*
+- `rtl/memory_stream.*` / `ddr_if` *(new — the `DDRAM_*` streamer that writes/reads the framework `SS` slots)*
 - `rtl/tv80*` + `rtl/tv80_auto_ss.sv` *(new — only if swapping the Z80 core)*
 - `rtl/<ram>_ss_adaptor` wrappers around each BRAM in `rtl/dkong3_*` *(modified RAM instances)*
 - `Arcade-DonkeyKong3.sv` *(CONF_STR slots, `savestate_ui`, streamer, ioctl/DDR storage, pause reuse)*

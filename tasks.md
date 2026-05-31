@@ -396,10 +396,15 @@ Reference: [Arcade-IGSPGM_MiSTer](https://github.com/wickerwaka/Arcade-IGSPGM_Mi
         `auto_save_adaptor2`). Most faithful to the reference, but re-verify CPU timing/cycle behaviour.
       - Option (b) **Hand-instrument the T80 VHDL** to expose its registers on the ssbus. No core swap,
         but large/error-prone.
-- [ ] **Transport:** Option B (recommended for DK3's small state) = stream the snapshot to/from the
-      HPS over `ioctl_upload`/`ioctl_download` into a `.ss` file (same mechanism as hiscore `.nvm`),
-      no DDR. Option A (PGM-faithful) = port `memory_stream`/`ddr_if`/`ddr_mux` and drive the
-      currently-unused `DDRAM_*` wrapper ports, 4 MB/slot.
+- [ ] **Transport — use the framework-native `SS` mechanism** (corrected per
+      `mister-framework-reference/32-rom-save-state-flows.md` §2.3; an earlier draft's "HPS `.ss` file
+      via `ioctl_upload`" idea was wrong and is dropped). Declare `SS<base>:<size>` in `CONF_STR`
+      (base/size inside `[0x20000000, 0x40000000)`, NOT overlapping the `0x24000000` scaler
+      framebuffer). The HPS then provides **4 DDRAM slots** (`ss_base + i*ss_size`) **and automatic
+      `.ss` disk persistence** — the core only drives `DDRAM_*` into the slot with the
+      payload→size-word→change-detector-LAST order. Reuse PGM's `save_state_data`/`memory_stream` as
+      the DDRAM streamer, pointed at the SS region. (DK3 already declares `MISTER_FB`, so the DDRAM
+      bridge is active for the scaler — verify whether `emu` currently drives or ties `DDRAM_*`.)
 
 ### 4.1 Port the savestate framework
 - [ ] Copy `rtl/savestates.sv` (interface `ssbus_if`, `ssbus_mux`, `auto_save_adaptor`,
@@ -407,9 +412,9 @@ Reference: [Arcade-IGSPGM_MiSTer](https://github.com/wickerwaka/Arcade-IGSPGM_Mi
 - [ ] Copy `rtl/savestate_ui.sv` into `rtl/`.
 - [ ] Copy the RAM adaptor module(s) (`ram_ss_adaptor`; the M68k-specific `m68k_ram_ss_adaptor` is not
       needed for DK3's 8-bit RAMs — use/derive a plain 8-bit `ram_ss_adaptor`).
-- [ ] If Option A (DDR): also port `memory_stream`, `ddr_if`, `ddr_mux`, and the relevant `sys/ddr_svc`
-      pieces. If Option B (HPS): replace `save_state_data`'s DDR `memory_stream` with an
-      ioctl-upload/download streamer.
+- [ ] Port `memory_stream` (+ `ddr_if`/`ddr_mux` if used) as the DDRAM streamer; point its
+      writes/reads at the framework `SS` slot region (`ss_base + slot*ss_size`, payload at `+8`,
+      header protocol per Task 4.0). No HPS-file/ioctl streamer — the `SS` token handles persistence.
 - [ ] Add all new files to `files.qip`.
 
 ### 4.2 Define the savestate device map
@@ -451,16 +456,21 @@ Reference: [Arcade-IGSPGM_MiSTer](https://github.com/wickerwaka/Arcade-IGSPGM_Mi
       2. Wait for a safe boundary (e.g. VBLANK and CPU not mid-bus-cycle) to avoid a torn snapshot.
       3. Pulse `write_start` (save) or `read_start` (load) on `save_state_data`; wait `busy` low.
       4. Release `I_PAUSE`.
+- [ ] **Save write order is a hard contract** (doc 32 §7 A.2): stream payload → write size word at
+      `ss_base+slot*ss_size+4` → write the change detector at `+0` **LAST**. Bumping the detector
+      early lets the HPS flush a half-written `.ss`. Fence DDRAM writes before the detector if the path
+      can reorder.
+- [ ] On load, gate "slot has data" off the **size word ≠ 0**, not the change detector (doc 32 §7 A.6
+      — empty slots are zero-filled with detector forced to `0xFFFFFFFF`).
 - [ ] Ensure the Z80 `WAIT_n` pause and the streamer's RAM access don't collide (RAM adaptors assume
       the CPU is paused during ssbus access).
 
-### 4.7 Storage transport
-- [ ] **Option B (HPS file):** assign a savestate `ioctl_index`; on save, stream the collected
-      snapshot to the HPS via `ioctl_upload`/`ioctl_din` into a `.ss` file; on load, stream it back via
-      `ioctl_download`. Reuse the upload-path ports added for hiscore (Task 2.2).
-- [ ] **Option A (DDR):** drive the `emu` wrapper's `DDRAM_*` ports (`Arcade-DonkeyKong3.sv:129-138`,
-      currently unused) from the ported `ddr_if`/`memory_stream`; one DDR region per slot
-      (`SS_DDR_BASE + slot*4MB`).
+### 4.7 Storage transport — provided by the framework
+- [ ] **Nothing to build.** The `SS<base>:<size>` token (Task 4.0) makes the HPS poll each slot's
+      change detector (~1 s cadence) and auto-persist changed slots to
+      `<root>/savestates/<Core>/<basename>_<N>.ss`, and reload them into DDRAM on next launch. The core
+      only drives `DDRAM_*` into the slot region with the write order above. **Do NOT** build an
+      `ioctl_upload`/`.ss`-file path — that is not the savestate transport (doc 32 §2.3).
 
 ### 4.8 UI + CONF_STR (`Arcade-DonkeyKong3.sv`)
 - [ ] Add savestate menu lines (model on PGM):
@@ -490,15 +500,17 @@ Reference: [GBA_MiSTer](https://github.com/MiSTer-devel/GBA_MiSTer) — `rtl/gba
 `GBA.sv`. Full analysis in [`docs/rewind-analysis.md`](docs/rewind-analysis.md).
 
 > ⚠️ **Rewind is a thin ring-buffer scheduler on top of Savestates — it adds NO new state capture.**
-> It is **100% dependent on Feature 4**, and specifically requires Feature 4's **DDR transport
-> (Option A)** with a `request_save/load/address/busy` handshake — the SD-card file path (Option B)
-> is too slow to capture once per second. Build Feature 4 (DDR variant) first.
+> It is **100% dependent on Feature 4** (the `DDRAM_*` streamer + `request_save/load/address/busy`
+> handshake). The rewind ring is a **core-managed DDRAM region the core addresses directly** — NOT the
+> framework's 4-slot `SS` channel (that's only for disk-persisted manual saves) and never persisted to
+> disk. Build Feature 4 (which already creates the `DDRAM_*` path) first.
 
 ### 5.0 Prerequisite check (blocking)
-- [ ] Feature 4 savestates working with a **fast local (DDR) transport**, exposing a
-      save/load-to-address-N + busy handshake (model on PGM's `save_state_data`:
-      `write_start`/`read_start`/`index`/`busy`). If Feature 4 shipped with Option B (HPS file), add
-      the DDR path before starting rewind.
+- [ ] Feature 4 savestates working: the `ssbus`/adaptor state collection + a `DDRAM_*` streamer with a
+      save/load-to-address-N + busy handshake (PGM's `save_state_data`:
+      `write_start`/`read_start`/`index`/`busy`). Rewind reuses that streamer, pointing a second
+      address generator (the ring pointer) at a **private DDRAM ring region** distinct from both the
+      `SS` slots and the `0x24000000` scaler framebuffer.
 
 ### 5.1 Port the rewind scheduler
 - [ ] Create `rtl/dkong3_statemanager.v(hd)` from `gba_statemanager.vhd` — a small FSM with:
@@ -518,10 +530,11 @@ Reference: [GBA_MiSTer](https://github.com/MiSTer-devel/GBA_MiSTer) — `rtl/gba
 - [ ] Counting VBLANKs also aligns captures to a safe boundary automatically.
 
 ### 5.3 Memory map (DDR rewind ring)
-- [ ] Allocate two regions in the savestate DDR area: the **manual-slot region**
-      (`manual_base + slot*SS_SIZE`) and the **rewind ring** (`rewind_base + pos*SS_SIZE`,
-      `REWIND_COUNT` slots). DK3 snapshots are a few KB, so even a 64-slot ring is well under 1 MB —
-      pick `REWIND_COUNT` freely (64 ≈ history length × capture interval).
+- [ ] Manual saves use the framework `SS` slots (Feature 4, auto-persisted). The **rewind ring** is a
+      separate **core-managed** region (`rewind_base + pos*SS_SIZE`, `REWIND_COUNT` slots), addressed
+      directly over `DDRAM_*`, never disk-persisted. Pick `rewind_base` to avoid both the `SS` region
+      and the `0x24000000` scaler framebuffer. DK3 snapshots are a few KB, so even a 64-slot ring is
+      well under 1 MB — pick `REWIND_COUNT` freely (64 ≈ history length × capture interval).
 - [ ] (Alternative) For a *short* ring (8–16 slots) an on-chip BRAM ring is possible, avoiding DDR
       entirely — note the M10K cost.
 
@@ -555,8 +568,6 @@ Reference: [GBA_MiSTer](https://github.com/MiSTer-devel/GBA_MiSTer) — `rtl/gba
 ## Cross-feature integration notes
 - [ ] `pause_cpu` is shared: it gates the Z80 (Feature 1) AND is the `paused` input to `hiscore`
       (Feature 2). `hs_pause` feeds back into `pause.pause_request`. Wire this loop once.
-- [ ] `ioctl_index` routing summary (no collisions): `0` = ROM (existing), `3` = hiscore config,
-      `4` = nvram dump, `254` = DIP (existing, `Arcade-DonkeyKong3.sv:337`), `255` = cheats.
 - [ ] `OSD_STATUS` (already a port, `Arcade-DonkeyKong3.sv:182`, currently unused) is consumed by
       both `pause` and `hiscore`.
 - [ ] `dkong3_main` gains ports for all four features (`I_PAUSE`, the `hs_*` group, the `I_GG_*`
@@ -564,23 +575,22 @@ Reference: [GBA_MiSTer](https://github.com/MiSTer-devel/GBA_MiSTer) — `rtl/gba
       instance once for all of them.
 - [ ] **`I_PAUSE` is reused by savestates** (Feature 4 asserts it to drain the CPU before snapshotting)
       — build Feature 1 first.
-- [ ] **The hiscore upload path (Task 2.2: `ioctl_upload`/`ioctl_upload_req`/`ioctl_din`) is reused by
-      the savestate HPS transport** (Feature 4, Option B) — build Feature 2 first if taking Option B.
 - [ ] **The free `dpram` B-port trick** is used by both hiscore (Task 2.6) and savestate RAM adaptors
       (Task 4.4) — a RAM serving both must share/arbitrate that port (both only access while paused).
-- [ ] **Rewind (Feature 5) reuses the savestate engine + `I_PAUSE`** and forces Feature 4's **DDR
-      transport** — if savestates ship with the HPS-file transport (Option B), add the DDR path before
-      rewind. Rewind adds only a ring-buffer scheduler, no new state capture.
+- [ ] **Savestates (Feature 4) use the framework `SS<base>:<size>` DDRAM channel** (4 disk-persisted
+      slots, auto-flush). **Rewind (Feature 5) reuses the same `DDRAM_*` streamer + `I_PAUSE`** but
+      addresses a **private, non-persisted DDRAM ring** — not the `SS` slots.
 - [ ] `ioctl_index` routing summary (no collisions): `0` = ROM (existing), `3` = hiscore config,
-      `4` = nvram dump, `254` = DIP (existing, `Arcade-DonkeyKong3.sv:337`), `255` = cheats,
-      `<pick a free index>` = savestate file (Feature 4 Option B; not used by rewind).
+      `4` = nvram dump, `254` = DIP (existing, `Arcade-DonkeyKong3.sv:337`), `255` = cheats
+      (framework-reserved — `cheats_init` zero-fills it at every ROM open; doc 32 §7 A.4). Savestates
+      use the `SS` DDRAM channel, **not** an `ioctl_index`.
 
 ## Files touched (all five features)
 - [ ] `rtl/pause.v` *(new — copied)*
 - [ ] `rtl/hiscore.v` *(new — copied)*
 - [ ] `rtl/cheatengine_8.sv` *(new — trimmed from M92)*
 - [ ] `rtl/savestates.sv`, `rtl/savestate_ui.sv`, `ram_ss_adaptor` *(new — ported from PGM)*
-- [ ] `rtl/memory_stream.*` / `ddr_if` / `ddr_mux` *(new — Feature 4 Option A/DDR; required for Feature 5)*
+- [ ] `rtl/memory_stream.*` / `ddr_if` / `ddr_mux` *(new — Feature 4 `DDRAM_*` streamer into the `SS` slots; reused by Feature 5)*
 - [ ] `rtl/tv80*` + `rtl/tv80_auto_ss.sv` *(new — Feature 4 Option (a), if swapping the Z80 core)*
 - [ ] `rtl/dkong3_statemanager.v(hd)` *(new — ported from `gba_statemanager.vhd`, Feature 5)*
 - [ ] `files.qip` *(add all new modules)*
@@ -597,9 +607,10 @@ Reference: [GBA_MiSTer](https://github.com/MiSTer-devel/GBA_MiSTer) — `rtl/gba
       Verilog auto-generator can't instrument them; either swap T80→tv80s (re-verify) or hand-instrument.
       This is the dominant risk/effort item; everything else (RAM/latch capture, bus framework, UI)
       ports cleanly.
-- [ ] **Rewind:** depends entirely on Feature 4 using the **DDR transport** with a request/busy
-      handshake (Task 5.0). Rewind itself is a small ring-buffer scheduler (low risk); the gating cost
-      is the Feature-4 DDR savestate path.
-- [ ] **Recommended sequencing:** Pause → Hiscore → Cheats → Savestates (DDR variant) → Rewind.
-      Savestates reuse the pause gate; Rewind reuses the savestate engine + pause gate + DDR transport.
+- [ ] **Rewind:** depends entirely on Feature 4's `DDRAM_*` streamer + request/busy handshake
+      (Task 5.0). Rewind itself is a small ring-buffer scheduler (low risk) addressing a private DDRAM
+      ring; the gating cost is the Feature-4 savestate engine.
+- [ ] **Recommended sequencing:** Pause → Hiscore → Cheats → Savestates (framework `SS` DDRAM channel)
+      → Rewind. Savestates reuse the pause gate; Rewind reuses the savestate engine + pause gate +
+      `DDRAM_*` path.
 - [ ] Everything else is mechanical wiring that mirrors the reference cores.

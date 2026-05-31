@@ -122,18 +122,28 @@ attempt rewind before savestates work.** Specifically, rewind needs the savestat
 `save_state_data`-style streamer provides. (PGM's `save_state_data` already has
 `read_start`/`write_start`/`index`/`busy` — that maps directly.)
 
-### 2.2 Transport: rewind forces the *fast local* path
-The Savestate analysis offered two transports: **Option A (DDR)** and **Option B (HPS `.ss` file)**.
-**Rewind is incompatible with Option B** — you cannot push a snapshot through the SD-card file system
-once per second, let alone read them back at 2 Hz during playback. Rewind requires a fast,
-randomly-addressable local memory ring:
-- **DDR3** (recommended) — DK3's `emu` wrapper already exposes unused `DDRAM_*` ports
-  (`Arcade-DonkeyKong3.sv:124-133`); a rewind ring lives there comfortably.
+### 2.2 Transport: a core-managed DDRAM ring, separate from the framework SS slots
+> **Refined per the added framework docs** (`mister-framework-reference/32-rom-save-state-flows.md`
+> §2.3, `31-ddram.md`). The framework's native savestate channel (the `SS<base>:<size>` token) is
+> **only 4 disk-persisted slots** — it is *not* the place a rewind ring lives.
+
+Rewind needs a fast, randomly-addressable, **transient** ring of dozens of snapshots once per second
+— so it must live in a **core-managed DDRAM region the core addresses directly**, exactly as GBA does
+with its own `Softmap_Rewind_ADDR` (distinct from `Softmap_SaveState_ADDR`). It is **not** routed
+through the framework's 4-slot `SS` mechanism and is **never** persisted to disk.
+
+- **DDR3** (the transport) — drive the `emu` `DDRAM_*` ports (`Arcade-DonkeyKong3.sv:124-133`) through
+  the framework `f2sdram` bridge (`sysmem` + `f2sdram_safe_terminator` are already in `sys/`). Reads
+  are out-of-order; the only valid-data reference is `DDRAM_DOUT_READY`; respect `DDRAM_BUSY`
+  (waitrequest). 64-bit words, 29-bit word address. Choose a ring base that avoids the
+  `0x24000000` scaler framebuffer region and any `SS` region you declared for manual saves.
 - **On-chip BRAM** — viable only for a *short* ring, because DK3's M10K is mostly used. See sizing.
 
-**Implication:** if rewind is a goal, build Feature 4 with the **DDR transport (Option A)** rather
-than the HPS-file transport. (Manual savestates can still also write an SD file; rewind uses the DDR
-ring.)
+**Implication:** rewind requires the core to **own a DDRAM master and address a private ring region**.
+This is the same `DDRAM_*` plumbing the savestate streamer uses for the `SS` slots — build that DDRAM
+write/read path in Feature 4, then point a second address generator (the ring pointer) at the rewind
+region for Feature 5. Manual saves still use the framework `SS` slots (auto-persisted); rewind uses
+the private ring (transient).
 
 ### 2.3 Sizing — rewind is *cheap* for DK3
 GBA snapshots are 512 KB each ⇒ a 64-slot ring is 32 MB (needs DDR). DK3's pragmatic snapshot (main
@@ -193,9 +203,9 @@ savestate_ui ──ss_save/ss_load/ss_slot, joyRewind, rewindEnable──▶ dko
 | Ensure capture window fits the pause budget (snapshot small ⇒ fine) | low | low |
 
 **The entire risk is upstream:** rewind itself is a tiny ring-buffer scheduler. Its only real
-requirement is that **Feature 4 exists and uses a fast local (DDR) transport with a
-`request/busy` handshake**. If savestates ship with the HPS-file transport (Option B), rewind will
-require adding the DDR path first.
+requirement is that **Feature 4 exists with a working `DDRAM_*` streamer + `request/busy` handshake**.
+Rewind reuses that streamer, pointing it at a private DDRAM ring region (separate from the framework
+`SS` slots used for manual saves).
 
 ### Files touched
 - `rtl/dkong3_statemanager.v(hd)` *(new — ported from `gba_statemanager.vhd`)*
