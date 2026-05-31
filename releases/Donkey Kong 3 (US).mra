@@ -9,10 +9,10 @@
 	<series>Donkey Kong</series>
 	<year>1983</year>
 	<manufacturer>Nintendo</manufacturer>
-	<category>Platform - Climb</category>
+	<category>Shooter</category>
 
 	<setname>dkong3</setname>
-	<parent>dkong4</parent>
+	<parent>dkong3</parent>
 	<mameversion>0220</mameversion>
 	<rbf>donkeykong3</rbf>
 	<about></about>
@@ -25,7 +25,7 @@
 	<joystick>4-way</joystick>
 	<special_controls></special_controls>
 	<num_buttons>1</num_buttons>
-	<buttons default="A,Start,Select,R,L" names="Jump,Start 1P,Start 2P,Coin,Test"></buttons>
+	<buttons default="A,Start,Select,R,L" names="Spray,Start 1P,Start 2P,Coin,Test"></buttons>
 
 	<switches default="00,00">
 		<dip bits="0,1" ids="3,4,5,6" name="Lives"></dip>
@@ -64,5 +64,5 @@
 
 	<remark></remark>
 
-	<mratimestamp>20210430005030</mratimestamp>
+	<mratimestamp>20260530005030</mratimestamp>
 </misterromdescription>
