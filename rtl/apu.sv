@@ -130,7 +130,7 @@ module SquareChan (
 	input  logic [7:0] lc_load,
 	input  logic       LenCtr_Clock,
 	input  logic       Env_Clock,
-	input  logic       odd_or_even,
+	input  logic       get_or_put,
 	input  logic       Enabled,
 	output logic [3:0] Sample,
 	output logic       IsNonZero
@@ -534,7 +534,7 @@ module DmcChan (
 	};
 
 	assign Sample = dmc_volume_next[6:0];
-	assign dma_req = ~have_buffer & enable & enable_3;
+	assign dma_req = ~have_buffer & enable_3;
 	logic dmc_clock;
 
 	assign dma_address[15] = 1;
@@ -735,29 +735,30 @@ module FrameCtr (
 	assign frame_quarter = (frm_a | frm_b | frm_c | frm_d | frm_e | (w4017_2 & seq_mode));
 
 	always_ff @(posedge clk) begin : apu_block
+		// The priority of all these statements is important in which takes precident
+		if (addr == 2'h1 && read)
+			FrameInterrupt <= 0;
 
-		if (aclk1) begin
+		if (set_irq) begin
+			FrameInterrupt <= 1;
+			frame_interrupt_buffer <= 1;
+		end
+
+		if (aclk1) begin // Get cycle
 			frame <= frame_reset_2 ? 15'h7FFF : {frame[13:0], ((frame[14] ^ frame[13]) | ~|frame)};
 			w4017_2 <= w4017_1;
 			w4017_1 <= 0;
 			FrameSeqMode_2 <= FrameSeqMode;
 			frame_reset_2 <= 0;
+			if (~FrameInterrupt) frame_interrupt_buffer <= 0;
 		end
 
 		if (aclk2 & frame_reset)
 			frame_reset_2 <= 1;
 
-		// Continously update the Frame IRQ state and read buffer
-		if (set_irq & ~frame_int_disabled) begin
-			FrameInterrupt <= 1;
-			frame_interrupt_buffer <= 1;
-		end else if (addr == 2'h1 && read)
+		if (frame_int_disabled) begin
 			FrameInterrupt <= 0;
-		else
-			frame_interrupt_buffer <= FrameInterrupt;
-
-		if (frame_int_disabled)
-			FrameInterrupt <= 0;
+		end
 
 		if (write_ce && addr == 3 && ~MMC5) begin  // Register $4017
 			FrameSeqMode <= din[7];
@@ -793,13 +794,15 @@ module APU (
 	input  logic        CS,
 	input  logic  [4:0] audio_channels, // Enabled audio channels
 	input  logic  [7:0] DmaData,        // Input data to DMC from memory.
-	input  logic        odd_or_even,
+	input  logic        get_or_put,
 	input  logic        DmaAck,         // 1 when DMC byte is on DmcData. DmcDmaRequested should go low.
 	output logic  [7:0] DOUT,           // Data from APU
 	output logic [15:0] Sample,
 	output logic        DmaReq,         // 1 when DMC wants DMA
 	output logic [15:0] DmaAddr,        // Address DMC wants to read
-	output logic        IRQ             // IRQ asserted high == asserted
+	output logic        IRQ,            // IRQ asserted high == asserted
+	output logic        get_ce,         // Clock enable for a get cycle
+	output logic        put_ce          // Clock enable for a put cycle
 );
 
 	logic [7:0] len_counter_lut[32];
@@ -833,10 +836,13 @@ module APU (
 	// aclk2    -- Aligned with CPU phi2, also every other frame
 	// write    -- Happens on CPU phi2 (Not M2!). Most of these are latched by one of the above clocks.
 	logic aclk1, aclk2, aclk1_delayed, phi1;
-	assign aclk1 = ce & odd_or_even;          // Defined as the cpu tick when the frame counter increases
-	assign aclk2 = phi2_ce & ~odd_or_even;                   // Tick on odd cycles, not 50% duty cycle so it covers 2 cpu cycles
-	assign aclk1_delayed = ce & ~odd_or_even; // Ticks 1 cpu cycle after frame counter
+	assign aclk1 = ce & get_or_put;          // Defined as the cpu tick when the frame counter increases
+	assign aclk2 = phi2_ce & ~get_or_put;    // Tick on odd cycles, not 50% duty cycle so it covers 2 cpu cycles
+	assign aclk1_delayed = ce & ~get_or_put; // Ticks 1 cpu cycle after frame counter
 	assign phi1 = ce;
+
+	assign get_ce = aclk1;
+	assign put_ce = aclk1_delayed;
 
 	logic [4:0] Enabled;
 	logic [3:0] Sq1Sample,Sq2Sample,TriSample,NoiSample;
@@ -853,7 +859,7 @@ module APU (
 	assign ApuMW1 = ADDR[4:2]==1; // SQ2
 	assign ApuMW2 = ADDR[4:2]==2; // TRI
 	assign ApuMW3 = ADDR[4:2]==3; // NOI
-	assign ApuMW4 = ADDR[4:2]>=4; // DMC
+	assign ApuMW4 = ADDR[4:2]==4 || ADDR[4:0]==5'b10101; // DMC
 	assign ApuMW5 = ADDR[4:2]==5; // Control registers
 
 	logic Sq1NonZero, Sq2NonZero, TriNonZero, NoiNonZero;
@@ -906,7 +912,7 @@ module APU (
 		.lc_load      (lc_load),
 		.LenCtr_Clock (ClkL),
 		.Env_Clock    (ClkE),
-		.odd_or_even  (odd_or_even),
+		.get_or_put   (get_or_put),
 		.Enabled      (Enabled[0]),
 		.Sample       (Sq1Sample),
 		.IsNonZero    (Sq1NonZero)
@@ -927,7 +933,7 @@ module APU (
 		.lc_load      (lc_load),
 		.LenCtr_Clock (ClkL),
 		.Env_Clock    (ClkE),
-		.odd_or_even  (odd_or_even),
+		.get_or_put   (get_or_put),
 		.Enabled      (Enabled[1]),
 		.Sample       (Sq2Sample),
 		.IsNonZero    (Sq2NonZero)

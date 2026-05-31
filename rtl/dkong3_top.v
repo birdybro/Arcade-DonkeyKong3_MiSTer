@@ -39,7 +39,24 @@ module dkong3_top
 );
 
 wire   W_RESETn      = I_RESETn;
-wire   W_CPU_RESETn  = W_RESETn;
+
+// 2-FF reset deassertion sync into clk_main. I_RESETn is generated
+// synchronously in clk_sys (Arcade-DonkeyKong3.sv); without this, the
+// emu|reset -> T80as|Reset_s recovery path crosses two PLL outputs
+// (24.576 MHz -> 4 MHz) with a non-integer ratio, and the cross-PLL
+// common-period window collapses below routing delay. s1 async-asserts
+// on reset, sync-deasserts on clk_main; s2 is purely synchronous so it
+// has no cross-PLL recovery path of its own.
+reg cpu_resetn_s1;
+always @(posedge I_CLK_4M or negedge W_RESETn) begin
+   if (!W_RESETn) cpu_resetn_s1 <= 1'b0;
+   else           cpu_resetn_s1 <= 1'b1;
+end
+
+reg cpu_resetn_s2;
+always @(posedge I_CLK_4M) cpu_resetn_s2 <= cpu_resetn_s1;
+
+wire   W_CPU_RESETn  = cpu_resetn_s2;
 
 //-----------------
 // Clocks / Timing
@@ -106,7 +123,23 @@ wire        W_VRAM_WRn;
 
 wire   [7:0]W_3E_Q;
 wire   [3:0]W_4E_Q;
+wire        W_SUB_RESETn_RAW;
 wire        W_SUB_RESETn;
+
+// 2-FF reset deassertion sync into I_SUBCLK. W_SUB_RESETn_RAW comes from
+// dkong3_adec registered on clk_sys/12M; T65 has its own internal sync but
+// the APU on clk_sub does not. Same shape as the Z80 sync above: s1 async-
+// asserts and sync-deasserts; s2 is purely synchronous in clk_sub.
+reg sub_resetn_s1;
+always @(posedge I_SUBCLK or negedge W_SUB_RESETn_RAW) begin
+   if (!W_SUB_RESETn_RAW) sub_resetn_s1 <= 1'b0;
+   else                   sub_resetn_s1 <= 1'b1;
+end
+
+reg sub_resetn_s2;
+always @(posedge I_SUBCLK) sub_resetn_s2 <= sub_resetn_s1;
+
+assign W_SUB_RESETn = sub_resetn_s2;
 
 dkong3_main maincpu
 (
@@ -139,7 +172,7 @@ dkong3_main maincpu
    .O_VRAM_WRn(W_VRAM_WRn),
    .O_3E_Q(W_3E_Q),
    .O_4E_Q(W_4E_Q),
-   .O_SUB_RESETn(W_SUB_RESETn)
+   .O_SUB_RESETn(W_SUB_RESETn_RAW)
 );
 
 //------------------------------------
