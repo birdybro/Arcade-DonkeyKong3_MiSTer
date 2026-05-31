@@ -91,3 +91,40 @@ must stay in sync. DIP switches arrive separately via `ioctl_index==254` into `s
 - Timing-closure-sensitive: the `.qsf` runs aggressive physical-synthesis/retiming options and a
   fixed `SEED`. The `840716a`-era "improve timing closure" history shows fitter results matter here;
   prefer registered/pipelined changes and re-check timing after edits to hot paths (CPU, video).
+
+## Reference bundles (load before writing RTL)
+
+Two curated, source-cited reference bundles live at the repo root. They are **LLM aids**, not build
+inputs (not in `files.qip`). Consult them before writing or reviewing HDL — they encode contracts you
+would otherwise rediscover by trial and error.
+
+- `mister-framework-reference/` — the MiSTer framework contracts (emu top-level, CONF_STR, hps_io +
+  ioctl/download, SDRAM/DDRAM/BRAM, **ROM/save/savestate/cheat flows**, video/audio, MRA/arcade,
+  cross-core patterns). Every claim cites a pinned MiSTer-devel commit. Start at its `00-INDEX.md`.
+- `hdl-coding-guidelines/` — generic Cyclone V (`5CSEBA6U23I7`/DE10-Nano) HDL practice (synthesizable
+  SV subset, clocking/reset/CDC, FIFO/skid, M10K/MLAB/DSP inference, timing/SDC, anti-patterns,
+  bring-up checklist). Start at its `00-INDEX.md`.
+
+Both label every factual claim: **[C]** framework/synthesis contract (non-negotiable), **[V]**
+convention, **[O]** observed in a named core at a named commit, **[I]** inference (verify). Weight
+accordingly. Each topic doc lists its `Load with:` neighbors — follow them.
+
+## Planned features & task tracking
+
+Four feature efforts have been analyzed but **not yet implemented** (no RTL written): **pause**,
+**high-score saving (NVRAM)**, **cheats**, **savestates**, and **rewind**. The design docs are in
+`docs/` and the consolidated, ordered checklist is `tasks.md` (read it before starting any of this
+work — it owns the status-bit/joystick-button allocation and cross-feature wiring that must be done
+once for all features):
+
+- `docs/pause-and-hiscore-analysis.md` — pause (gate Z80 `WAIT_n`) + hiscore (`hiscore.v`, NVRAM).
+- `docs/cheats-analysis.md` — Game-Genie-style engine spliced on the Z80 read bus (`ZDO`), codes at
+  `ioctl_index==255`.
+- `docs/savestates-analysis.md` — ssbus/auto-ss state collection; **uses the framework-native
+  `SS<base>:<size>` DDRAM channel** for transport/persistence (see `mister-framework-reference/32`).
+- `docs/rewind-analysis.md` — ring-buffer scheduler over savestates in a core-managed DDRAM region.
+
+Recommended sequencing (dependencies): **Pause → Hiscore → Cheats → Savestates → Rewind** (savestates
+reuse the pause gate; rewind reuses the savestate engine + pause gate + the `DDRAM_*` path). The two
+genuinely hard/blocking items are the `dkong3` hiscore-config + cheat-code data, and capturing the
+**VHDL** T80/T65 CPU state for savestates (the Verilog auto-ss generator can't instrument them).
