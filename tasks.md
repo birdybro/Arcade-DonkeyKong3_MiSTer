@@ -85,10 +85,20 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
       inferred-RAM ROMs (dkong3_roms.v `posedge CLK0; DO<=core[AD]`) clock on `clk`;
       add `if(cen)` on the read register (or accept faster-but-stable read sampled
       at cen ticks). Compare in diff TBs only at cen ticks.
+- [x] 3.0b `tb/common/dpram.sv`: behavioral altsyncram model (clocken-gated,
+      async read, new-data RDW) — REQUIRED for every memory-containing diff test
+      (the real dpram is Altera IP, unsimulatable by verilator/ghdl). Done.
 - [ ] 3.1 `dkong3_vram_sync.v`: RAM on `cen_o_clk_p`; COL PROM / VID ROM on
       `cen_o_clk_n`; negedge-24M COL latch → `cen_24m_n`; reg_4P/4N shift regs →
       `cen_hcnt0_p`; W_VRAMBUSY (was `posedge H_CNT[2] / negedge H_CNT[9]`) →
       `cen_hcnt2_p` + H_CNT[9]-level set; W_ESBLK → `cen_hcnt6_p`.
+      ⚠ CROSS-MODULE TIMING: with H_CNT crossing hv_count_sync → vram_sync, NBA
+      ordering makes vram see the *old* H_CNT on a strobe tick, but the original
+      (real posedge H_CNT[2]) sees the *new* post-increment value. RECOMMENDED
+      approach: convert the H counter + vram (and obj) logic as ONE coherent
+      synchronous module (shared H_CNT_r registers, no boundary skew), OR have
+      hv_count_sync expose H_CNT_nxt (combinational next) for strobe-gated
+      consumers. Pin exact via the diff test (iterative).
 - [ ] 3.1b `tb/diff/vram_diff`: golden hv_count+vram vs sync hv_count_sync+vram_sync,
       identical CPU writes/flip/VF_CNT, compare O_DB/O_COL/O_VID/O_VRAMBUSYn.
 - [ ] 3.2 `dkong3_obj_sync.v` (largest): register/gated clocks `W_5F2_Q[0/2]`,
