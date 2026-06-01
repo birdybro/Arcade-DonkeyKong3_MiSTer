@@ -35,14 +35,24 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
       constraint (verilator=Verilog, ghdl=VHDL; CPU-adjacent glue uses a bus-replay
       stub) is documented.
 
-## Stage 1 — Clock foundation
+## Stage 1 — Clock foundation  ✅ DONE
 
-- [ ] 1.1 Regenerate `rtl/pll` → single output `clk = 98.304 MHz`; verify lock (LED_USER during bring-up).
-- [ ] 1.2 New `rtl/clk_en.v`: phase counter + decoded strobes (`cen_24m_p/n`, `cen_12m_p/n`, `cen_6m`, `cen_pix`, decoded `cen_o_clk`/`cen_v_clk`) + fractional CENs (`cen_cpu` = 4.000 MHz exact via 125/3072 accumulator; `cen_snd` = 21.477272 MHz).
-- [ ] 1.3 `tb/unit/clk_en`: assert each CEN's average rate + phase alignment.
-- [ ] 1.4 Top: `clk_sys=clk`, `CLK_VIDEO=clk`, `CE_PIXEL=cen_pix`; instantiate `clk_en`; bridge legacy derived nets from new CENs so the core still runs.
-- [ ] 1.5 Single async-assert/sync-release reset synchronizer in the `clk` domain.
-- [ ] 1.6 Build + boot/video golden trace unchanged.
+- [x] 1.1 PLL regenerated (by user) with 4 outputs: `outclk_0`=98.304 (master
+      `clk`), `outclk_1`=24.576, `outclk_2`=21.477, `outclk_3`=4.0. The legacy
+      three are KEPT (phase-locked to `clk`) for the staged migration; trimmed to
+      single 98.304 in Stage 6.
+- [x] 1.2 `rtl/clk_en.v`: phase strobes `cen_24m_p/n` (÷4 @ phase 0/2),
+      `cen_12m_p/n` (÷8 @ phase 0/4); fractional `cen_cpu` = 4.000 MHz exact
+      (125/3072 NCO); `cen_snd` ≈ 21.4773 MHz (229094/2^20 NCO). (`cen_6m`/`cen_pix`/
+      decoded `cen_o_clk`/`cen_v_clk` added in Stage 2 from the H counter.)
+- [x] 1.3 `tb/unit/clk_en_unit`: exact rate counts + phase invariants (gaps,
+      mutual exclusion, 12m⊂24m). PASS.
+- [x] 1.4 Top: `clk`=outclk_0 wired; `clk_en` instantiated. (CLK_VIDEO/CE_PIXEL
+      stay on legacy `clk_sys` until video converts in Stage 2; CENs unused until
+      consumed per-subsystem.)
+- [x] 1.5 `clk`-domain async-assert / sync-release reset (`clk_rst`).
+- [x] 1.6 Quartus: 0 errors, timing met (setup +0.601, hold +0.206, 4-output PLL
+      OK). `make regress` ALL PASS. Core still boots on legacy clocks (unchanged).
 
 ## Stage 2 — H/V counter & video timing
 

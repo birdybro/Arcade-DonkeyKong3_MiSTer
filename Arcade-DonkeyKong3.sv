@@ -230,17 +230,46 @@ localparam CONF_STR = {
 
 ////////////////////   CLOCKS   ///////////////////
 
-wire clk_sys;
-wire clk_main;
-wire clk_sub;
+// Clock rework (docs/clock-rework/ANALYSIS.md): `clk` (98.304 MHz) is the new
+// single master. The legacy clk_sys/clk_sub/clk_main are KEPT during the staged
+// migration so not-yet-converted modules keep running; they are all phase-locked
+// to `clk` (same PLL) and get removed once every module is on clk + CEN.
+wire clk;            // 98.304 MHz master
+wire clk_sys;        // 24.576 MHz (legacy)
+wire clk_sub;        // 21.477 MHz (legacy)
+wire clk_main;       //  4.000 MHz (legacy)
 
 pll pll
 (
    .refclk(CLK_50M),
    .rst(0),
-   .outclk_0(clk_sys),  // 24.576Mhz
-   .outclk_1(clk_sub),  // 21.477Mhz
-   .outclk_2(clk_main)  // 4Mhz
+   .outclk_0(clk),      // 98.304 MHz  (new master)
+   .outclk_1(clk_sys),  // 24.576 MHz
+   .outclk_2(clk_sub),  // 21.477 MHz
+   .outclk_3(clk_main)  //  4.000 MHz
+);
+
+// Master-domain reset: async-assert / sync-release in the clk domain
+// (docs/hdl-coding-guidelines/11). reset_async is built from clean (framework /
+// registered) sources so it does not glitch the async-clear.
+wire reset_async = RESET | status[0] | buttons[1];
+reg [1:0] clk_rst_sync;
+always @(posedge clk or posedge reset_async) begin
+   if (reset_async) clk_rst_sync <= 2'b11;
+   else             clk_rst_sync <= {clk_rst_sync[0], 1'b0};
+end
+wire clk_rst = clk_rst_sync[1];
+
+// Clock-enable generator: every former clock becomes one of these enables.
+// Unused until the per-subsystem conversions (Stages 2-5) consume them.
+wire cen_24m_p, cen_24m_n, cen_12m_p, cen_12m_n, cen_cpu, cen_snd;
+clk_en clk_en_inst
+(
+   .clk(clk),
+   .rst(clk_rst),
+   .cen_24m_p(cen_24m_p), .cen_24m_n(cen_24m_n),
+   .cen_12m_p(cen_12m_p), .cen_12m_n(cen_12m_n),
+   .cen_cpu(cen_cpu),     .cen_snd(cen_snd)
 );
 
 ///////////////////////////////////////////////////

@@ -35,6 +35,9 @@ VTESTS += $(1)
 endef
 
 # ---- test registry ---------------------------------------------------------
+# Unit tests (self-contained module checks).
+$(eval $(call define_vtest,clk_en_unit,unit/clk_en_unit_tb.sv,$(RTL)/clk_en.v))
+
 # Differential equivalence tests (golden vs reworked). Add one line per module.
 $(eval $(call define_vtest,hv_count_diff,diff/hv_count_diff_tb.sv,$(RTL)/dkong3_hv_count.v))
 
