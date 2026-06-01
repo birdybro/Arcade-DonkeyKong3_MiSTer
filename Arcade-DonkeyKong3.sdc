@@ -21,7 +21,7 @@ derive_clock_uncertainty
 # 98.304 otherwise). The ROM/RAM read data feeding it is stable for >=8 master
 # clk (the cen_o_clk period) and the core consumes it ~24 clk apart, so these are
 # multicycle paths. 4/3 stays well inside the >=8-clk stable window. ---
-set z80_regs [get_registers {*Z80IP_CEN:CPU|T80as:z80core|*}]
+set z80_regs [get_registers {*Z80IP_CEN:CPU|T80as_ce:z80core|*}]
 set_multicycle_path -setup -end 4 -to   $z80_regs
 set_multicycle_path -hold  -end 3 -to   $z80_regs
 set_multicycle_path -setup -end 4 -from $z80_regs

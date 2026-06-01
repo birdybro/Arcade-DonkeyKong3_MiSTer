@@ -73,7 +73,8 @@ GHDLFLAGS := --std=08 -frelaxed
 GHDL_WORK := $(BUILD)/ghdl
 T80SRC := $(RTL)/t80asd_ip/T80_Pack.vhd $(RTL)/t80asd_ip/T80_MCode.vhd \
           $(RTL)/t80asd_ip/T80_ALU.vhd $(RTL)/t80asd_ip/T80_Reg.vhd \
-          $(RTL)/t80asd_ip/T80.vhd $(RTL)/t80asd_ip/T80as.vhd
+          $(RTL)/t80asd_ip/T80.vhd $(RTL)/t80asd_ip/T80as.vhd \
+          $(RTL)/t80asd_ip/T80as_ce.vhd
 
 .PHONY: t80_smoke
 t80_smoke:

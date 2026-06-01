@@ -70,6 +70,7 @@ DOUT,
 BUSWO,
 RESET_N,
 CEN,
+CEN_N,
 INT_N,
 NMI_N,
 WAIT_N,
@@ -88,14 +89,17 @@ CLK
 output [15:0] ADRS;
 input  [7:0] DINP;
 output [7:0] DOUT;
-input  RESET_N,CEN,INT_N,NMI_N,WAIT_N,CLK2X,CLK;
+input  RESET_N,CEN,CEN_N,INT_N,NMI_N,WAIT_N,CLK2X,CLK;
 output M1_N,MREQ_N,IORQ_N,RD_N,WR_N,RFSH_N,HALT_N,BUSWO;
 
-T80as z80core (
+// Synchronous-CEN T80 wrapper: state machine on CEN (cen_cpu), bus-control on
+// CEN_N (cen_cpu_n). See rtl/t80asd_ip/T80as_ce.vhd.
+T80as_ce z80core (
 
 .RESET_n(RESET_N),
 .CLK_n(CLK),
-.CEN_i(CEN),
+.CEN_p(CEN),
+.CEN_n(CEN_N),
 .WAIT_n(WAIT_N),
 .INT_n(INT_N),
 .NMI_n(NMI_N),

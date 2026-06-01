@@ -69,6 +69,7 @@ Z80IP_CEN CPU
    .CLK2X(),
    .CLK(clk),
    .CEN(cen_cpu),
+   .CEN_N(cen_cpu_n),
    .RESET_N(I_MCPU_RESETn),
    .INT_N(1'b1),
    .NMI_N(W_MCPU_NMIn),

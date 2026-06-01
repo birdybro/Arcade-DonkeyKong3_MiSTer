@@ -27,13 +27,14 @@ architecture sim of t80_cen_tb is
   signal clk     : std_logic := '0';
   signal ph      : unsigned(1 downto 0) := "00";
   signal reset_n : std_logic := '0';
-  signal cen     : std_logic;
+  signal cen_p   : std_logic;
+  signal cen_n   : std_logic;
   signal done    : boolean := false;
 
   signal a    : std_logic_vector(15 downto 0);
   signal di   : std_logic_vector(7 downto 0);
   signal do   : std_logic_vector(7 downto 0);
-  signal wr_n, mreq_n, prev_wr : std_logic := '1';
+  signal wr_n, mreq_n : std_logic := '1';
 
   signal saw_w0, saw_w1 : boolean := false;
 
@@ -60,14 +61,16 @@ architecture sim of t80_cen_tb is
 begin
   clk <= not clk after 5 ns when not done else '0';
   process(clk) begin if rising_edge(clk) then ph <= ph + 1; end if; end process;
-  cen <= '1' when ph = "01" else '0';   -- 4 MHz-style 1-in-4 clock-enable
+  -- two-phase enables: state machine on cen_p, bus-control on cen_n (half later)
+  cen_p <= '1' when ph = "01" else '0';
+  cen_n <= '1' when ph = "11" else '0';
 
   di <= rom(a);
 
-  dut : entity work.T80as
+  dut : entity work.T80as_ce
     generic map ( Mode => 0 )
     port map (
-      RESET_n => reset_n, CLK_n => clk, CEN_i => cen,
+      RESET_n => reset_n, CLK_n => clk, CEN_p => cen_p, CEN_n => cen_n,
       WAIT_n => '1', INT_n => '1', NMI_n => '1', BUSRQ_n => '1',
       M1_n => open, MREQ_n => mreq_n, IORQ_n => open, RD_n => open, WR_n => wr_n,
       RFSH_n => open, HALT_n => open, BUSAK_n => open,
@@ -86,7 +89,7 @@ begin
   process(clk)
   begin
     if rising_edge(clk) then
-      if cen = '1' and reset_n = '1' then
+      if cen_p = '1' and reset_n = '1' then
         if wr_n = '0' and mreq_n = '0' then
           if a = x"4000" then
             assert do = x"5A" report "FAIL: t80_cen wrote " & to_hstring(do) &

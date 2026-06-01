@@ -8,6 +8,7 @@ set_global_assignment -name VHDL_FILE rtl/t80asd_ip/T80_MCode.vhd
 set_global_assignment -name VHDL_FILE rtl/t80asd_ip/T80_Reg.vhd
 set_global_assignment -name VHDL_FILE rtl/t80asd_ip/T80.vhd
 set_global_assignment -name VHDL_FILE rtl/t80asd_ip/T80as.vhd
+set_global_assignment -name VHDL_FILE rtl/t80asd_ip/T80as_ce.vhd
 set_global_assignment -name VERILOG_FILE rtl/clk_en.v
 set_global_assignment -name VERILOG_FILE rtl/z80ip_t.v
 set_global_assignment -name VERILOG_FILE rtl/dkong3_bram.v
