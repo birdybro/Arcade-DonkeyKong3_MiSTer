@@ -46,6 +46,17 @@ $(eval $(call define_vtest,vram_diff,diff/vram_diff_tb.sv,$(RTL)/dkong3_hv_count
 
 $(eval $(call define_vtest,obj_diff,diff/obj_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v $(RTL)/dkong3_obj.v $(RTL)/dkong3_obj_sync.v $(RTL)/dkong3_logic.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
 
+$(eval $(call define_vtest,col_pal_diff,diff/col_pal_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v $(RTL)/dkong3_col_pal.v $(RTL)/dkong3_col_pal_sync.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
+
+# Whole video group (Stage 3.4 integration): hv + vram + obj + col_pal.
+VIDEO_RTL := $(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v \
+             $(RTL)/dkong3_video.v $(RTL)/dkong3_video_sync.v \
+             $(RTL)/dkong3_vram.v $(RTL)/dkong3_vram_sync.v \
+             $(RTL)/dkong3_obj.v $(RTL)/dkong3_obj_sync.v \
+             $(RTL)/dkong3_col_pal.v $(RTL)/dkong3_col_pal_sync.v \
+             $(RTL)/dkong3_logic.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv
+$(eval $(call define_vtest,video_diff,diff/video_diff_tb.sv,$(VIDEO_RTL)))
+
 # ---- GHDL (VHDL cores) -----------------------------------------------------
 GHDL ?= ghdl
 # GHDL 6.0 mcode backend: analyze (-a) then elaborate-and-run (-r); no separate

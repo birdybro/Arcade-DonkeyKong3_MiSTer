@@ -123,11 +123,23 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 - [x] 3.2b `tb/diff/obj_diff`: golden hv_count+obj vs sync, DMA-filled OBJ RAM +
       loaded OBJ ROMs, free-running engine over multiple frames incl.
       flip-screen/offsets/2PSL/CMPBLK variations. **6,800,000 checks, 0 mismatches.**
-- [ ] 3.3 `dkong3_col_pal_sync.v`: `I_CLK_6M`(=H_CNT[0]) → `cen_hcnt0_p`; the
-      self-resetting latch `W_1B2C_RST = I_CMPBLKn | W_1B2C_Q[0]` → synchronous
-      equivalent. + `tb/diff/col_pal_diff`.
-- [ ] 3.4 `dkong3_video_sync` wires the group; integrate into `dkong3_top`.
-- [ ] 3.5 Build + video golden trace match; `make regress` green.
+- [x] 3.3 `dkong3_col_pal_sync.v`: `I_CLK_6M`(=H_CNT[0]) → `cen_hcnt0_p`; CLUT
+      PROMs → `cen_24m_p` (new `CLUT_PROM_512_8_CE`/`_4_CE`); self-resetting latch
+      `W_1B2C_RST = I_CMPBLKn | W_1B2C_Q[0]` → level reset in the clk domain.
+      `tb/diff/col_pal_diff`: **1,125,000 checks, 0 mismatches** (latch exercised
+      by toggling I_CMPBLKn).
+- [x] 3.4 `dkong3_video_sync` wires the three sync submodules on `clk` + the
+      hv_count_sync strobes + O_CLK level. `tb/diff/video_diff` (whole group:
+      golden hv+video vs sync hv+video_sync, all ROMs loaded, VRAM/OBJ prefilled,
+      LFSR CPU/3E_Q/flip stimulus, end-to-end RGB compared): **7,500,000 checks,
+      0 mismatches.**
+- [~] 3.5 dkong3_top swap + Quartus build + video golden trace: **deferred to the
+      atomic top swap after Stages 4-5.** Rationale: integrating sync-video into
+      dkong3_top while main/sound still run on legacy PLL clocks would introduce
+      transitional clk↔clk_main/clk_sub CDC at the video boundary (main RAM is
+      clocked by ~O_CLK; main reads O_VRAMBUSYn/VRAM_DB and writes VRAM). Moving
+      hv+video+main+sound to `clk` together is one clean swap with zero
+      transitional CDC. The whole-group `video_diff` already proves equivalence.
 
 ## Stage 4 — Main CPU subsystem
 

@@ -324,6 +324,58 @@ assign O_DATA = (I_CE == 1'b0) ? {dt3n,dt3p} : 16'h0000;
 endmodule
 
 //-----------------------------------
+// CLUT PROM 1D (512x8) / 1C (512x4)
+// Clock-enable variants (clk + cen) for the rework. Same content/decode as
+// CLUT_PROM_512_8 / CLUT_PROM_512_4; read register gated by `cen`.
+//-----------------------------------
+
+module CLUT_PROM_512_8_CE
+(
+   input          clk,
+   input          cen,
+   input     [8:0]I_ADDR,
+   output    [7:0]O_DATA,
+
+   input          I_DLCLK,
+   input    [16:0]I_DLADDR,
+   input     [7:0]I_DLDATA,
+   input          I_DLWR
+);
+
+wire [7:0] dt;
+
+DLROM_CE #(9,8) prom1d(clk, cen, I_ADDR, dt,
+                       I_DLCLK, I_DLADDR[8:0], I_DLDATA,
+                       I_DLWR & (I_DLADDR[16:9]==8'b1_0010_000));
+
+assign O_DATA = dt;
+
+endmodule
+
+module CLUT_PROM_512_4_CE
+(
+   input          clk,
+   input          cen,
+   input     [8:0]I_ADDR,
+   output    [3:0]O_DATA,
+
+   input          I_DLCLK,
+   input    [16:0]I_DLADDR,
+   input     [7:0]I_DLDATA,
+   input          I_DLWR
+);
+
+wire [3:0] dt;
+
+DLROM_CE #(9,4) prom1c(clk, cen, I_ADDR, dt,
+                       I_DLCLK, I_DLADDR[8:0], I_DLDATA[3:0],
+                       I_DLWR & (I_DLADDR[16:9]==8'b1_0010_001));
+
+assign O_DATA = dt;
+
+endmodule
+
+//-----------------------------------
 // CLUT PROM 1D (512x8)
 // Only 256 entries are used.
 // 8-bit output.
