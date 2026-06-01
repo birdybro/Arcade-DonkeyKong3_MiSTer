@@ -41,6 +41,9 @@ $(eval $(call define_vtest,clk_en_unit,unit/clk_en_unit_tb.sv,$(RTL)/clk_en.v))
 # Differential equivalence tests (golden vs reworked). Add one line per module.
 $(eval $(call define_vtest,hv_count_diff,diff/hv_count_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v))
 
+# Coupled video timing group: hv_count(+sync) + vram(+sync) + shared ROMs/RAM.
+$(eval $(call define_vtest,vram_diff,diff/vram_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v $(RTL)/dkong3_vram.v $(RTL)/dkong3_vram_sync.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
+
 # ---- GHDL (VHDL cores) -----------------------------------------------------
 GHDL ?= ghdl
 # GHDL 6.0 mcode backend: analyze (-a) then elaborate-and-run (-r); no separate

@@ -71,6 +71,98 @@ dpram #(AW, DW) dprom
 
 endmodule
 
+//----------------------------------------------------------------------------
+// Clock-enable variant of DLROM, for the synchronous clock rework.
+// Original DLROM clocks the read register on a fabric-derived clock (e.g.
+// negedge O_CLK). The rework runs everything on the single master `clk` and
+// gates the read register with a clock-enable `CEN0` that pulses on the same
+// instant the original clock edge occurred. Behaviour is bit-identical when
+// sampled at CEN ticks. (Write port unchanged: download clock CLK1.)
+//----------------------------------------------------------------------------
+
+module DLROM_CE #(parameter AW,parameter DW)
+(
+   input                  CLK0,
+   input                  CEN0,
+   input        [(AW-1):0]AD0,
+   output reg   [(DW-1):0]DO0,
+
+   input                  CLK1,
+   input        [(AW-1):0]AD1,
+   input        [(DW-1):0]DI1,
+   input                  WE1
+);
+
+reg [DW-1:0] core[0:((2**AW)-1)];
+
+always @(posedge CLK0) if (CEN0) DO0 <= core[AD0];
+always @(posedge CLK1) if (WE1) core[AD1] <= DI1;
+
+endmodule
+
+//-----------------------------------------
+// Backgound character tiles ROM's 3P, 3N.
+// Clock-enable variant (clk + cen) for the rework. Same content/decode as
+// VID_ROM; read register gated by `cen` (= negedge O_CLK strobe).
+//-----------------------------------------
+
+module VID_ROM_CE
+(
+   input         clk,
+   input         cen,
+   input   [11:0]I_ADDR,
+   input         I_CE,
+   output  [15:0]O_DATA,
+
+   input         I_DLCLK,
+   input   [16:0]I_DLADDR,
+   input    [7:0]I_DLDATA,
+   input         I_DLWR
+);
+
+wire [7:0] dt3p, dt3n;
+
+DLROM_CE #(12,8) vidrom3p(clk, cen, I_ADDR, dt3p,
+                          I_DLCLK, I_DLADDR[11:0], I_DLDATA,
+                          I_DLWR & (I_DLADDR[16:12]==5'b0_0110));
+
+DLROM_CE #(12,8) vidrom3n(clk, cen, I_ADDR, dt3n,
+                          I_DLCLK, I_DLADDR[11:0], I_DLDATA,
+                          I_DLWR & (I_DLADDR[16:12]==5'b0_0111));
+
+assign O_DATA = (I_CE == 1'b0) ? {dt3n,dt3p} : 16'h0000;
+
+endmodule
+
+//-----------------------------------
+// Colour palette PROM 2N (256x4)
+// Clock-enable variant (clk + cen) for the rework. Same content/decode as
+// COL_PROM_256_4; read register gated by `cen` (= negedge O_CLK strobe).
+//-----------------------------------
+
+module COL_PROM_256_4_CE
+(
+   input          clk,
+   input          cen,
+   input     [7:0]I_ADDR,
+   output    [3:0]O_DATA,
+
+   input          I_DLCLK,
+   input    [16:0]I_DLADDR,
+   input     [7:0]I_DLDATA,
+   input          I_DLWR
+);
+
+wire [3:0] dt;
+
+DLROM_CE #(8,4) prom2n(clk, cen, I_ADDR, dt,
+                       I_DLCLK, I_DLADDR[7:0], I_DLDATA[3:0],
+                       I_DLWR & (I_DLADDR[16:8]==9'h124));
+
+assign O_DATA = dt;
+
+endmodule
+
 //--------------------------------
 // Main CPU ROMS 7B,7C,7D and 7E.
 //--------------------------------

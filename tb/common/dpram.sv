@@ -1,6 +1,6 @@
 // tb/common/dpram.sv
-// Behavioral simulation model of rtl/dpram.vhd (Altera altsyncram wrapper), for
-// verilator. Matches the synthesis config in dpram.vhd:
+// Behavioral simulation model of rtl/dpram.vhd (the Altera altsyncram wrapper).
+// Matches the synthesis config in dpram.vhd:
 //   - BIDIR_DUAL_PORT, two clocks
 //   - clocken0/1 = enable_a/b  (the clock-enable; gates addr/wren/data capture)
 //   - outdata UNREGISTERED      (q is async: mem[registered_read_address])

@@ -88,19 +88,26 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 - [x] 3.0b `tb/common/dpram.sv`: behavioral altsyncram model (clocken-gated,
       async read, new-data RDW) — REQUIRED for every memory-containing diff test
       (the real dpram is Altera IP, unsimulatable by verilator/ghdl). Done.
-- [ ] 3.1 `dkong3_vram_sync.v`: RAM on `cen_o_clk_p`; COL PROM / VID ROM on
-      `cen_o_clk_n`; negedge-24M COL latch → `cen_24m_n`; reg_4P/4N shift regs →
-      `cen_hcnt0_p`; W_VRAMBUSY (was `posedge H_CNT[2] / negedge H_CNT[9]`) →
-      `cen_hcnt2_p` + H_CNT[9]-level set; W_ESBLK → `cen_hcnt6_p`.
-      ⚠ CROSS-MODULE TIMING: with H_CNT crossing hv_count_sync → vram_sync, NBA
-      ordering makes vram see the *old* H_CNT on a strobe tick, but the original
-      (real posedge H_CNT[2]) sees the *new* post-increment value. RECOMMENDED
-      approach: convert the H counter + vram (and obj) logic as ONE coherent
-      synchronous module (shared H_CNT_r registers, no boundary skew), OR have
-      hv_count_sync expose H_CNT_nxt (combinational next) for strobe-gated
-      consumers. Pin exact via the diff test (iterative).
-- [ ] 3.1b `tb/diff/vram_diff`: golden hv_count+vram vs sync hv_count_sync+vram_sync,
-      identical CPU writes/flip/VF_CNT, compare O_DB/O_COL/O_VID/O_VRAMBUSYn.
+- [x] 3.1 `dkong3_vram_sync.v`: RAM on `cen_o_clk_p` (dpram directly, clock=clk,
+      enable=`~W_vram_CS & cen_o_clk_p`); COL PROM / VID ROM on `cen_o_clk_n`
+      (new `COL_PROM_256_4_CE`/`VID_ROM_CE`/`DLROM_CE` in dkong3_roms.v);
+      negedge-24M COL latch → `cen_24m_n`; reg_4P/4N shift regs → `cen_hcnt0_p`;
+      W_VRAMBUSY → `cen_hcnt2_p` capture + `cen_hcnt9_n` clear; W_ESBLK →
+      `cen_hcnt6_p` + `cen_hcnt9_n`. Added `cen_hcnt9_n` (negedge H_CNT[9]) to
+      hv_count_sync.
+      ✅ CROSS-MODULE TIMING RESOLVED (no combined module / no H_CNT_nxt needed):
+      each strobe edge only toggles H_CNT bits *below* the ones its consumer
+      reads (posedge H_CNT[2] → bits[3:0] roll, but VRAMBUSY reads [9],[7:4]
+      which don't change; posedge O_CLK → only bit0 toggles, RAM/PROM read
+      [9:1] unchanged). So sampling the *registered* I_H_CNT on the strobe tick
+      already equals the original's post-edge value. The one true coincidence
+      (reg_4P's `posedge CLK_4PN` ≡ VID_ROM's `negedge O_CLK`) is preserved
+      because both sides update on the same master edge with NBA, so reg_4P sees
+      the pre-edge ROM output exactly as the original did. Verified, not eyeballed.
+- [x] 3.1b `tb/diff/vram_diff`: golden hv_count+vram vs sync hv_count_sync+vram_sync,
+      shared ROM download + VRAM write sweep, LFSR-randomized CPU/scan/flip/offset
+      stimulus, compare O_DB/O_COL/O_VID/O_VRAMBUSYn/O_ESBLKn at quiet phase.
+      **2,000,005 checks, 0 mismatches.** `make regress` ALL PASS.
 - [ ] 3.2 `dkong3_obj_sync.v` (largest): register/gated clocks `W_5F2_Q[0/2]`,
       `CLK_3E/4L/5L`, `posedge I_H_CNT[6]`, `negedge I_H_CNT[9]`, both edges of
       24M/12M → decoded CENs. + `tb/diff/obj_diff`.

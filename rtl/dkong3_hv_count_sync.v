@@ -38,7 +38,8 @@ module dkong3_hv_count_sync
    // (so bit0=1 -> the event always coincides with cen_o_clk_n, the H_CNT update).
    output       cen_hcnt0_p,   // posedge H_CNT[0] (6.144 MHz, was CLK_4PN)
    output       cen_hcnt2_p,   // posedge H_CNT[2] (was vram VRAMBUSY clock)
-   output       cen_hcnt6_p    // posedge H_CNT[6] (was vram ESBLK clock)
+   output       cen_hcnt6_p,   // posedge H_CNT[6] (was vram ESBLK clock)
+   output       cen_hcnt9_n    // negedge H_CNT[9] (was vram VRAMBUSY/ESBLK async clear)
 );
 
 parameter H_count = 1536;
@@ -66,6 +67,10 @@ assign cen_o_clk_n = cen_24m_p &  H_CNT_r[0];
 assign cen_hcnt0_p = cen_o_clk_n & ~H_CNT_r[1] & H_CNT_next[1];
 assign cen_hcnt2_p = cen_o_clk_n & ~H_CNT_r[3] & H_CNT_next[3];
 assign cen_hcnt6_p = cen_o_clk_n & ~H_CNT_r[7] & H_CNT_next[7];
+
+// negedge H_CNT[9] (= H_CNT_r[10] 1->0): happens on the H counter wrap
+// (1535 -> 0). Used by vram's VRAMBUSY/ESBLK async-clear path.
+assign cen_hcnt9_n = cen_24m_p & H_CNT_r[10] & ~H_CNT_next[10];
 
 always@(posedge clk) if (cen_24m_p)
    H_CNT_r <= H_CNT_next;
