@@ -43,7 +43,8 @@ module hv_count_diff_tb;
     .O_CLK(d_oclk), .H_CNT(d_hcnt), .V_CNT(d_vcnt), .VF_CNT(d_vfcnt),
     .H_BLANKn(d_hbl_n), .V_BLANKn(d_vbl_n), .C_BLANKn(d_cbl_n),
     .H_SYNCn(d_hs_n), .V_SYNCn(d_vs_n),
-    .cen_o_clk_p(), .cen_o_clk_n()
+    .cen_o_clk_p(), .cen_o_clk_n(),
+    .cen_hcnt0_p(), .cen_hcnt2_p(), .cen_hcnt6_p()
   );
 
   // compare at ph==3 (both settled after the ph 1->2 update edge)

@@ -71,13 +71,30 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 - [ ] 2.3 Integrate with the video/main group (see Stage 3) — deferred to group swap.
 - [ ] 2.4 Build + golden video trace match; `make regress` green (at group integration).
 
-## Stage 3 — VRAM, OBJ, colour palette
+## Stage 3 — VRAM, OBJ, colour palette  (the coupled video group)
 
-- [ ] 3.1 `dkong3_vram.v`: `negedge I_CLK_24M`, `posedge CLK_4PN`, `posedge I_H_CNT[2/6]` → `posedge clk + cen_*`; RAM to Intel registered-read template (`30-...md` §3, pick RDW mode explicitly).
-- [ ] 3.2 `dkong3_obj.v`: every counter/register clock (`W_5F2_Q[*]`, `CLK_3E/4L/5L`, `I_H_CNT[*]`, both edges of 24M/12M) → decoded CENs in master domain.
-- [ ] 3.3 `dkong3_col_pal.v`: `I_CLK_6M`/`W_1B2C_RST` → `cen_6m` + sync reset.
-- [ ] 3.4 `tb/diff/` for vram, obj, col_pal (old vs new).
-- [ ] 3.5 Build + golden video trace match; `make regress` green.
+> Infrastructure ready: `hv_count_sync` exposes `cen_o_clk_p/n` (12.288 edges,
+> H-aligned) and `cen_hcnt0_p` (=CLK_4PN), `cen_hcnt2_p`, `cen_hcnt6_p`. Consumers
+> take these clean enables (no cross-module edge-detect/skew). `cen_24m_n` (from
+> clk_en) covers negedge-24M logic.
+
+- [ ] 3.0 Shared memory primitives → synchronous: `ram_1024_8`/`ram_2048_8`
+      (dkong3_bram.v) and the clocked PROM/ROM (dkong3_roms.v) gated by clk+cen,
+      registered-read per `30-...md` §3 (pick RDW mode explicitly; diff-verify).
+- [ ] 3.1 `dkong3_vram_sync.v`: RAM on `cen_o_clk_p`; COL PROM / VID ROM on
+      `cen_o_clk_n`; negedge-24M COL latch → `cen_24m_n`; reg_4P/4N shift regs →
+      `cen_hcnt0_p`; W_VRAMBUSY (was `posedge H_CNT[2] / negedge H_CNT[9]`) →
+      `cen_hcnt2_p` + H_CNT[9]-level set; W_ESBLK → `cen_hcnt6_p`.
+- [ ] 3.1b `tb/diff/vram_diff`: golden hv_count+vram vs sync hv_count_sync+vram_sync,
+      identical CPU writes/flip/VF_CNT, compare O_DB/O_COL/O_VID/O_VRAMBUSYn.
+- [ ] 3.2 `dkong3_obj_sync.v` (largest): register/gated clocks `W_5F2_Q[0/2]`,
+      `CLK_3E/4L/5L`, `posedge I_H_CNT[6]`, `negedge I_H_CNT[9]`, both edges of
+      24M/12M → decoded CENs. + `tb/diff/obj_diff`.
+- [ ] 3.3 `dkong3_col_pal_sync.v`: `I_CLK_6M`(=H_CNT[0]) → `cen_hcnt0_p`; the
+      self-resetting latch `W_1B2C_RST = I_CMPBLKn | W_1B2C_Q[0]` → synchronous
+      equivalent. + `tb/diff/col_pal_diff`.
+- [ ] 3.4 `dkong3_video_sync` wires the group; integrate into `dkong3_top`.
+- [ ] 3.5 Build + video golden trace match; `make regress` green.
 
 ## Stage 4 — Main CPU subsystem
 

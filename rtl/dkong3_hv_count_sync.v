@@ -31,7 +31,14 @@ module dkong3_hv_count_sync
    // Decoded strobes for synchronous downstream consumers (replace O_CLK as a
    // clock). cen_o_clk_p = posedge O_CLK (12.288 rising), _n = negedge.
    output       cen_o_clk_p,
-   output       cen_o_clk_n
+   output       cen_o_clk_n,
+
+   // Posedge strobes for the H_CNT bits used as clocks downstream (vram/obj).
+   // H_CNT[k] = H_CNT_r[k+1]; a bit only rolls 0->1 when all lower bits are 1
+   // (so bit0=1 -> the event always coincides with cen_o_clk_n, the H_CNT update).
+   output       cen_hcnt0_p,   // posedge H_CNT[0] (6.144 MHz, was CLK_4PN)
+   output       cen_hcnt2_p,   // posedge H_CNT[2] (was vram VRAMBUSY clock)
+   output       cen_hcnt6_p    // posedge H_CNT[6] (was vram ESBLK clock)
 );
 
 parameter H_count = 1536;
@@ -53,6 +60,12 @@ assign O_CLK      = H_CNT_r[0];
 // bit0==0 (even) never wraps (wrap is from 1535, odd), so next bit0 = 1 there.
 assign cen_o_clk_p = cen_24m_p & ~H_CNT_r[0];
 assign cen_o_clk_n = cen_24m_p &  H_CNT_r[0];
+
+// H_CNT[k]=H_CNT_r[k+1] rolls 0->1 only when carrying out of all lower bits,
+// which requires H_CNT_r[0]==1 -> coincides with cen_o_clk_n (the H_CNT update).
+assign cen_hcnt0_p = cen_o_clk_n & ~H_CNT_r[1] & H_CNT_next[1];
+assign cen_hcnt2_p = cen_o_clk_n & ~H_CNT_r[3] & H_CNT_next[3];
+assign cen_hcnt6_p = cen_o_clk_n & ~H_CNT_r[7] & H_CNT_next[7];
 
 always@(posedge clk) if (cen_24m_p)
    H_CNT_r <= H_CNT_next;
