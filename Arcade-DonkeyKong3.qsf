@@ -46,9 +46,25 @@ set_global_assignment -name PRE_MAPPING_RESYNTHESIS ON
 set_global_assignment -name ROUTER_CLOCKING_TOPOLOGY_ANALYSIS ON
 set_global_assignment -name ECO_OPTIMIZE_TIMING ON
 set_global_assignment -name PERIPHERY_TO_CORE_PLACEMENT_AND_ROUTING_OPTIMIZATION ON
-set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING ON
+# Clock rework: async-signal pipelining ADDS registers to control signals to
+# raise fmax, which can shift the sprite engine's hand-built edge-strobe / enable
+# timing in ways RTL sim never sees. Off.
+set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING OFF
 set_global_assignment -name ALM_REGISTER_PACKING_EFFORT LOW
 set_global_assignment -name SEED 1
+
+# Clock rework: keep the fitter from RETIMING the synchronous video core's flops
+# (esp. the sprite engine's enable-gated "register-as-clock" captures
+# W_8H_Q/W_6J_Q/W_3E_Q + the CLK_3E/4L/5L decodes). Retiming is functionally
+# invisible to RTL sim but can corrupt the sprite pipeline on silicon. Framework
+# retiming stays on globally (the core closes timing without it; only the
+# framework scaler needs it).
+set_instance_assignment -name ADV_NETLIST_OPT_ALLOWED "NEVER ALLOW" -to "*dkong3_obj_sync:*"
+set_instance_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING OFF -to "*dkong3_obj_sync:*"
+set_instance_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION OFF -to "*dkong3_obj_sync:*"
+set_instance_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING OFF -to "*dkong3_vram_sync:*"
+set_instance_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING OFF -to "*dkong3_col_pal_sync:*"
+set_instance_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING OFF -to "*dkong3_hv_count_sync:*"
 
 set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
 
