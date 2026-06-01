@@ -62,6 +62,9 @@ $(eval $(call define_vtest,dma_diff,diff/dma_diff_tb.sv,$(RTL)/dkong3_dma.v $(RT
 
 $(eval $(call define_vtest,adec_diff,diff/adec_diff_tb.sv,$(RTL)/dkong3_adec.v $(RTL)/dkong3_adec_sync.v $(RTL)/dkong3_logic.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
 
+# Sound subsystem (Stage 5): shell + 2A03 cadence, real 2A03 cores stubbed.
+$(eval $(call define_vtest,sound_diff,diff/sound_diff_tb.sv,$(RTL)/dkong3_sound.v $(RTL)/dkong3_sound_sync.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
+
 # ---- GHDL (VHDL cores) -----------------------------------------------------
 GHDL ?= ghdl
 # GHDL 6.0 mcode backend: analyze (-a) then elaborate-and-run (-r); no separate

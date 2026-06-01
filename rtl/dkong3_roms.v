@@ -561,6 +561,62 @@ assign O_DATA = dt;
 endmodule
 
 //---------------------------
+// Sub CPU 1/2 (Sound) ROMs 5L / 6H.
+// Clock-enable variants (clk + cen) for the rework. Same content/decode as
+// SUB1_ROM / SUB2_ROM; read register gated by `cen` (= cen_snd).
+//---------------------------
+
+module SUB1_ROM_CE
+(
+   input          clk,
+   input          cen,
+   input    [12:0]I_ADDR,
+   input          I_CE,
+   input          I_OE,
+   output    [7:0]O_DATA,
+
+   input          I_DLCLK,
+   input    [16:0]I_DLADDR,
+   input     [7:0]I_DLDATA,
+   input          I_DLWR
+);
+
+wire [7:0] dt;
+
+DLROM_CE #(13,8) srom5l(clk, cen, I_ADDR[12:0], dt,
+                        I_DLCLK, I_DLADDR[12:0], I_DLDATA,
+                        I_DLWR & (I_DLADDR[16:13]==4'b0_111));
+
+assign O_DATA = (I_CE == 1'b0 & I_OE == 1'b0) ? dt : 8'h00;
+
+endmodule
+
+module SUB2_ROM_CE
+(
+   input          clk,
+   input          cen,
+   input    [12:0]I_ADDR,
+   input          I_CE,
+   input          I_OE,
+   output    [7:0]O_DATA,
+
+   input          I_DLCLK,
+   input    [16:0]I_DLADDR,
+   input     [7:0]I_DLDATA,
+   input          I_DLWR
+);
+
+wire [7:0] dt;
+
+DLROM_CE #(13,8) srom6h(clk, cen, I_ADDR[12:0], dt,
+                        I_DLCLK, I_DLADDR[12:0], I_DLDATA,
+                        I_DLWR & (I_DLADDR[16:13]==4'b1_000));
+
+assign O_DATA = (I_CE == 1'b0 & I_OE == 1'b0) ? dt : 8'h00;
+
+endmodule
+
+//---------------------------
 // Sub CPU 1 (Sound) ROM 5L.
 //---------------------------
 

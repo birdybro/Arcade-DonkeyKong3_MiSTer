@@ -176,10 +176,27 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Stage 5 — Sound subsystem
 
-- [ ] 5.1 `dkong3_sound.v`: `div_cpu` chain + all RAM/latch flops from `posedge I_SUBCLK` → `posedge clk + cen_snd`; derive `cpu_ce/phi2/odd_or_even` on `cen_snd`.
-- [ ] 5.2 `dkong3_sub.v` / `apu.sv` driven by `clk` + the sound CENs (logic unchanged).
-- [ ] 5.3 `tb/diff/sound_diff` against the original `clk_sub` sound subsystem (audio sample equivalence).
-- [ ] 5.4 Build + audio golden trace match; `make regress` green.
+> The legacy sound was ALREADY a clean single-clock design (everything on
+> `posedge I_SUBCLK`; the 2A03 cadence is the `div_cpu` clock-enable). Conversion
+> is the uniform `posedge I_SUBCLK` → `posedge clk + cen_snd`. The 2A03 cores
+> (T65 + apu.sv) are clock-enable designs: every rate-critical APU signal
+> (`aclk1/aclk2/phi1/phi2_ce/write_ce`) is gated by `ce` or the PHI2 edge, so
+> running them on the faster master clk with `ce = cpu_ce & cen_snd` only
+> oversamples the edge detectors — behaviour is identical.
+
+- [x] 5.1 `dkong3_sound_sync.v`: `div_cpu`/`odd_or_even`/RAM-read regs/input
+      latches/synchronizers → `posedge clk + cen_snd`; RAM 5K/6F → dpram on
+      `cen_snd`; ROMs → `SUB1_ROM_CE`/`SUB2_ROM_CE` on `cen_snd`; subs get
+      `I_CPU_CE = cpu_ce & cen_snd`. Lints clean.
+- [x] 5.2 `dkong3_sub_sync.v`: T65 + apu.sv `.clk(clk)`, enables unchanged
+      (`I_CPU_CE`/`I_PHI2`/`I_ODD_OR_EVEN`). Lints clean (real apu.sv).
+- [x] 5.3 `tb/diff/sound_diff`: golden `dkong3_sound` (I_SUBCLK) vs
+      `dkong3_sound_sync` (clk+cen_snd), 2A03 cores replaced by an identical
+      deterministic bus-walking stub (exercises cadence + RAM/ROM/latches/mix).
+      **750,000 checks, 0 mismatches.** (Real T65/apu equivalence rests on the
+      analysis above + t80-style CEN gating; mixed VHDL+Verilog can't be
+      verilated whole.)
+- [ ] 5.4 Build + audio golden trace match (at the atomic top swap); `make regress` green.
 
 ## Stage 6 — SDC cleanup & timing closure
 
