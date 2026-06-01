@@ -143,10 +143,26 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Stage 4 — Main CPU subsystem
 
-- [ ] 4.1 `dkong3_main.v`: Z80 `CLK=clk, CEN=cen_cpu` (T80as already supports CEN); work RAM 7F/7H to template (`posedge clk`, not `~I_CLK_12M`).
-- [ ] 4.2 `dkong3_adec.v`: `posedge/negedge I_CLK` → `cen_cpu`/`cen_cpu_n`; NMI flop → synchronous VBLANK edge-detect gated by the 259 latch (remove `posedge W_VBLK or negedge W_3E_Q[4]`).
-- [ ] 4.3 `dkong3_dma.v`: `~I_MCPU_CLK` → `posedge clk + cen_cpu_n`.
-- [ ] 4.4 `tb/diff/` for adec, main (+ Z80 bus equivalence), dma.
+> NOTE: 98.304/4.000 = 24.576 (non-integer) → the 4 MHz CPU clock is an NCO
+> clock-enable `cen_cpu`; the legacy "negedge 4 MHz" logic (DMA, W_2D2_Q) maps to
+> a half-period-offset enable `cen_cpu_n`. The CPU domain is INTENTIONALLY moving
+> from async (separate crystal) to locked-to-master, so the diff tests assert
+> equivalence of the RTL under the post-rework locked clock relationship.
+
+- [x] 4.3 `dkong3_dma_sync.v`: `~I_MCPU_CLK` → `posedge clk + cen` (= cen_cpu_n).
+      `tb/diff/dma_diff`: golden on a ÷6 clock vs sync on clk+aligned enable;
+      full transfer sequence compared. **35,565 checks, 0 mismatches.**
+- [x] 4.2 `dkong3_adec_sync.v`: `posedge I_CLK`(4M)→`cen_cpu`, `negedge I_CLK`→
+      `cen_cpu_n`, `posedge I_CLK12M`(=O_CLK)→`cen_o_clk_p`. PROM/259/174/4E-latch
+      on `cen_o_clk_p` (new `ADEC_PROM_CE`). WAIT flop async-VBLK reset → level
+      reset; NMI flop (`posedge W_VBLK or negedge W_3E_Q[4]`) → clk-domain negedge-
+      detect of I_VBLK_n + level clear on W_3E_Q[4] (physically-correct LS74
+      async-clear). `tb/diff/adec_diff`: ÷6 CPU + ÷4 video clocks locked off the
+      master, LFSR bus/VBLK stimulus. **5,666,678 checks, 0 mismatches** (NMI
+      compared after its first defined negedge — golden NMI is power-up-undefined).
+- [ ] 4.1 `dkong3_main_sync.v`: Z80 `CLK=clk, CEN=cen_cpu` (expose CEN port in
+      T80as/Z80IP — currently hardwired `CEN<='1'`); work RAM 7F/7H + MAIN_ROM to
+      `cen_o_clk_p/n`; wire adec_sync + dma_sync. Z80-CEN equivalence via ghdl.
 - [ ] 4.5 Build + gameplay golden trace (Z80 bus + video) match; `make regress` green.
 
 ## Stage 5 — Sound subsystem

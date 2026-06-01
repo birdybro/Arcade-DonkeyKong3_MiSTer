@@ -460,6 +460,35 @@ endmodule
 
 //-----------------------------------
 // Address decoder PROM 5E (32x8)
+// Clock-enable variant (clk + cen) for the rework. Same content/decode as
+// ADEC_PROM; read register gated by `cen` (= posedge O_CLK strobe).
+//-----------------------------------
+
+module ADEC_PROM_CE
+(
+   input          clk,
+   input          cen,
+   input     [4:0]I_ADDR, //A15,A14,A13,A12,A11
+   output    [7:0]O_DATA,
+
+   input          I_DLCLK,
+   input    [16:0]I_DLADDR,
+   input     [7:0]I_DLDATA,
+   input          I_DLWR
+);
+
+wire [7:0] dt;
+
+DLROM_CE #(5,8) prom5e(clk, cen, I_ADDR, dt,
+                       I_DLCLK, I_DLADDR[4:0], I_DLDATA,
+                       I_DLWR & (I_DLADDR[16:5]==12'b1_0010_0101_000));
+
+assign O_DATA = dt;
+
+endmodule
+
+//-----------------------------------
+// Address decoder PROM 5E (32x8)
 //-----------------------------------
 
 module ADEC_PROM

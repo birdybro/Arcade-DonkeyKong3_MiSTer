@@ -57,6 +57,11 @@ VIDEO_RTL := $(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v \
              $(RTL)/dkong3_logic.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv
 $(eval $(call define_vtest,video_diff,diff/video_diff_tb.sv,$(VIDEO_RTL)))
 
+# Main CPU subsystem (Stage 4).
+$(eval $(call define_vtest,dma_diff,diff/dma_diff_tb.sv,$(RTL)/dkong3_dma.v $(RTL)/dkong3_dma_sync.v))
+
+$(eval $(call define_vtest,adec_diff,diff/adec_diff_tb.sv,$(RTL)/dkong3_adec.v $(RTL)/dkong3_adec_sync.v $(RTL)/dkong3_logic.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
+
 # ---- GHDL (VHDL cores) -----------------------------------------------------
 GHDL ?= ghdl
 # GHDL 6.0 mcode backend: analyze (-a) then elaborate-and-run (-r); no separate
