@@ -160,9 +160,18 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
       async-clear). `tb/diff/adec_diff`: ÷6 CPU + ÷4 video clocks locked off the
       master, LFSR bus/VBLK stimulus. **5,666,678 checks, 0 mismatches** (NMI
       compared after its first defined negedge — golden NMI is power-up-undefined).
-- [ ] 4.1 `dkong3_main_sync.v`: Z80 `CLK=clk, CEN=cen_cpu` (expose CEN port in
-      T80as/Z80IP — currently hardwired `CEN<='1'`); work RAM 7F/7H + MAIN_ROM to
-      `cen_o_clk_p/n`; wire adec_sync + dma_sync. Z80-CEN equivalence via ghdl.
+- [x] 4.1 Z80 CEN exposed: `T80as.vhd` now has a `CEN_i : in std_logic := '1'`
+      port (was hardwired `CEN<='1'`); default keeps legacy `Z80IP` free-running.
+      New `Z80IP_CEN` wrapper passes the enable. `tb/ghdl/t80_cen`: Z80 on
+      clk + 1-in-4 enable runs a program and performs the expected memory writes
+      (5A→4000, 5B→4001) → CEN gates the core correctly. **PASS.**
+- [x] 4.1b `dkong3_main_sync.v` wires it all on `clk`: Z80 `CLK=clk,CEN=cen_cpu`;
+      work RAM 7F/7H (dpram + `cen_o_clk_n` CPU side, `cen_o_clk_p` DMA side);
+      MAIN_ROM→`MAIN_ROM_CE` on `cen_o_clk_p`; `dkong3_adec_sync`,
+      `dkong3_dma_sync` (cen_cpu_n), `dkong3_input_sync` (cen_o_clk_p). Lints
+      clean (Z80 stub). Composed of independently-verified pieces (t80_cen,
+      adec_diff, dma_diff); the VHDL-Z80 + Verilog mix can't be verilated whole,
+      so it integrates and is validated at the atomic top swap.
 - [ ] 4.5 Build + gameplay golden trace (Z80 bus + video) match; `make regress` green.
 
 ## Stage 5 — Sound subsystem

@@ -87,6 +87,7 @@ entity T80as is
 	port(
 		RESET_n		: in std_logic;
 		CLK_n		: in std_logic;
+		CEN_i		: in std_logic := '1';	-- clock-enable (clock-rework); default keeps legacy free-running behaviour
 		WAIT_n		: in std_logic;
 		INT_n		: in std_logic;
 		NMI_n		: in std_logic;
@@ -136,7 +137,7 @@ architecture rtl of T80as is
 
 begin
 
-	CEN <= '1';
+	CEN <= CEN_i;
 
 	BUSAK_n <= BUSAK_n_i;
 	MREQ_n_i <= not MREQ or (Req_Inhibit and MReq_Inhibit);

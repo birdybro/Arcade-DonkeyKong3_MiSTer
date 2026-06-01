@@ -165,6 +165,53 @@ endmodule
 
 //--------------------------------
 // Main CPU ROMS 7B,7C,7D and 7E.
+// Clock-enable variant (clk + cen) for the rework. Same content/decode as
+// MAIN_ROM; read register gated by `cen` (= posedge O_CLK strobe).
+//--------------------------------
+
+module MAIN_ROM_CE
+(
+   input         clk,
+   input         cen,
+   input   [15:0]I_ADDR,
+   input    [3:0]I_CE,
+   input         I_OE,
+   output   [7:0]O_DATA,
+
+   input         I_DLCLK,
+   input   [16:0]I_DLADDR,
+   input    [7:0]I_DLDATA,
+   input         I_DLWR
+);
+
+wire  [7:0] dt7b, dt7c, dt7d, dt7e;
+
+DLROM_CE #(13,8) mrom7b(clk, cen, I_ADDR[12:0], dt7b,
+                        I_DLCLK, I_DLADDR[12:0], I_DLDATA,
+                        I_DLWR & (I_DLADDR[16:13]==4'b0_000));
+
+DLROM_CE #(13,8) mrom7c(clk, cen, I_ADDR[12:0], dt7c,
+                        I_DLCLK, I_DLADDR[12:0], I_DLDATA,
+                        I_DLWR & (I_DLADDR[16:13]==4'b0_001));
+
+DLROM_CE #(13,8) mrom7d(clk, cen, I_ADDR[12:0], dt7d,
+                        I_DLCLK, I_DLADDR[12:0], I_DLDATA,
+                        I_DLWR & (I_DLADDR[16:13]==4'b0_010));
+
+DLROM_CE #(13,8) mrom7e(clk, cen, I_ADDR[12:0], dt7e,
+                        I_DLCLK, I_DLADDR[12:0], I_DLDATA,
+                        I_DLWR & (I_DLADDR[16:13]==4'b0_100));
+
+assign O_DATA = (I_CE[0] == 1'b0 & I_OE == 1'b0) ? dt7b :
+                (I_CE[1] == 1'b0 & I_OE == 1'b0) ? dt7c :
+                (I_CE[2] == 1'b0 & I_OE == 1'b0) ? dt7d :
+                (I_CE[3] == 1'b0 & I_OE == 1'b0) ? dt7e :
+                8'h00;
+
+endmodule
+
+//--------------------------------
+// Main CPU ROMS 7B,7C,7D and 7E.
 //--------------------------------
 
 module MAIN_ROM

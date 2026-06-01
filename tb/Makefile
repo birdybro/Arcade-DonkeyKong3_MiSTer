@@ -82,7 +82,17 @@ t80_smoke:
 	@$(GHDL) -r $(GHDLFLAGS) --workdir=$(GHDL_WORK) t80_smoke_tb \
 	    --stop-time=50us --ieee-asserts=disable-at-0 2>&1 | grep -q "PASS: t80_smoke"
 
-GTESTS := t80_smoke
+.PHONY: t80_cen
+t80_cen:
+	@echo "=== ghdl: t80_cen ==="
+	@mkdir -p $(GHDL_WORK)
+	@$(GHDL) -a $(GHDLFLAGS) --workdir=$(GHDL_WORK) $(T80SRC) ghdl/t80_cen_tb.vhd
+	@$(GHDL) -r $(GHDLFLAGS) --workdir=$(GHDL_WORK) t80_cen_tb \
+	    --stop-time=210us --ieee-asserts=disable-at-0 2>&1 | grep -E "PASS:|FAIL:|mismatches|MISMATCH" || true
+	@$(GHDL) -r $(GHDLFLAGS) --workdir=$(GHDL_WORK) t80_cen_tb \
+	    --stop-time=210us --ieee-asserts=disable-at-0 2>&1 | grep -q "PASS: t80_cen"
+
+GTESTS := t80_smoke t80_cen
 
 # ---- aggregate targets -----------------------------------------------------
 .PHONY: verilate ghdl regress clean

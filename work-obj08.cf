@@ -1,0 +1,18 @@
+v 4
+file . "rtl/t80asd_ip/T80as.vhd" "22e03c618bb94a72280872f4ad0087b91952fdf0" "20260601060804.639":
+  entity t80as at 78( 2965) + 0 on 20;
+  architecture rtl of t80as at 113( 3870) + 0 on 21;
+file . "rtl/t80asd_ip/T80.vhd" "300250f70bd1d88ba36a36773afc1a3e42727d33" "20260601060804.638":
+  entity t80 at 70( 2681) + 0 on 18;
+  architecture rtl of t80 at 115( 3863) + 0 on 19;
+file . "rtl/t80asd_ip/T80_Reg.vhd" "6bf8c572c4f3342afe78d2e390097850e659a4f7" "20260601060804.636":
+  entity t80_reg at 52( 2029) + 0 on 16;
+  architecture rtl of t80_reg at 76( 2719) + 0 on 17;
+file . "rtl/t80asd_ip/T80_ALU.vhd" "b312636fd01fd117bc10592c377699fccf02ff07" "20260601060804.636":
+  entity t80_alu at 58( 2178) + 0 on 14;
+  architecture rtl of t80_alu at 88( 2923) + 0 on 15;
+file . "rtl/t80asd_ip/T80_MCode.vhd" "14715a6610805cfc04bc99b16bf852c2b8bff8eb" "20260601060804.635":
+  entity t80_mcode at 64( 2400) + 0 on 12;
+  architecture rtl of t80_mcode at 137( 4750) + 0 on 13;
+file . "rtl/t80asd_ip/T80_Pack.vhd" "f1af8a943362a84c230bd08391263e0eb52befaa" "20260601060804.631":
+  package t80_pack at 48( 1957) + 0 on 11;
