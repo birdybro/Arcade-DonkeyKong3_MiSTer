@@ -379,7 +379,7 @@ arcade_video#(256,12) arcade_video
 (
    .*,
 
-   .clk_video(clk_sys),
+   .clk_video(clk),
    .ce_pix(ce_vid),
 
    .RGB_in({r,g,b}),
@@ -419,11 +419,14 @@ end
 
 assign hblank = hbl[8];
 
+// Clock rework: the core video output is now in the `clk` (98.304 MHz) domain,
+// so the framework video path (arcade_video, clk_video=clk) runs on `clk` too -
+// no clk->clk_sys crossing. ce_vid marks each pixel (O_PIX = H_CNT[0] edge).
 reg  ce_vid;
 wire clk_pix;
 wire hbl0;
 reg [8:0] hbl;
-always @(posedge clk_sys) begin
+always @(posedge clk) begin
    reg old_pix;
    old_pix <= clk_pix;
    ce_vid <= 0;

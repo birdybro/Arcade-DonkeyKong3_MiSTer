@@ -198,19 +198,36 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
       verilated whole.)
 - [ ] 5.4 Build + audio golden trace match (at the atomic top swap); `make regress` green.
 
-## Stage 6 — SDC cleanup & timing closure
+## Stage 6 — SDC cleanup & timing closure  ✅ DONE (build green)
 
-- [ ] 6.1 Delete all custom SDC lines (the `set_max_delay $sync_max` block, the reset-sync `set_false_path`s). Keep `derive_pll_clocks` + `derive_clock_uncertainty`.
-- [ ] 6.2 Add multicycle constraints per the §6 phase map (24m=4/3, 12m=8/7, half-period=2/1, cpu/snd ≥24) using register groups.
-- [ ] 6.3 `check_timing` clean (no unconstrained paths, no fabric-derived clocks); all corners (setup/hold/recovery/removal/min-pulse) ≥ 0.
-- [ ] 6.4 Confirm no `negedge`/ripple/register/gated clock remains (grep + Quartus clock report shows only `clk`).
+- [x] 6.1 Custom SDC band-aids deleted (the `set_max_delay $sync_max` block + the
+      reset-sync `set_false_path`s referenced cross-PLL domains that no longer
+      exist). Kept `derive_pll_clocks` + `derive_clock_uncertainty`.
+- [x] 6.2 Multicycle added for the slow-CEN paths: Z80 (T80as, cen_cpu — its
+      DI_Reg is negedge-captured = half master-cycle) 4/3; sound 2A03 cores
+      (T65+APU) 4/3; both stay inside the data-stable window. The video output
+      clk→clk_sys crossing was ELIMINATED by moving arcade_video + ce_vid onto
+      `clk` (the proper single-clock outcome) rather than constrained.
+- [x] 6.3 Timing MET, all corners ≥ 0: **setup +0.211, hold +0.249, recovery
+      +3.707, removal +0.840, min-pulse +1.017. 0 "Timing requirements not met".**
+- [x] 6.4 No `negedge`/ripple/register/gated clock remains: every `always` block
+      in the `_sync` RTL + `clk_en` + `dkong3_top_sync` is `posedge clk` (verified
+      by grep; the only "negedge" tokens are explanatory comments).
 
 ## Stage 7 — Final verification & bring-up
 
-- [ ] 7.1 Full `make regress` green (all diff + unit + golden).
-- [ ] 7.2 Quartus: synthesis warnings reviewed (no latch/removed/no-driver surprises); RAMs land on M10K/MLAB as intended (Fitter report).
-- [ ] 7.3 On-hardware bring-up: boot, gameplay, audio, no flicker/reset over extended play.
-- [ ] 7.4 Update CLAUDE.md / memory with the final clock map.
+- [x] 7.1 Full `make regress` green (11 tests: clk_en_unit, hv/vram/obj/col_pal/
+      video/dma/adec/sound diff, t80_smoke, t80_cen).
+- [x] 7.2 Quartus: 0 errors; no inferred-latch / combinational-loop / removed-
+      register surprises; inferred RAMs land on M10K (160 blocks, 20% mem bits).
+      .sof + .rbf generated.
+- [ ] 7.3 On-hardware bring-up: boot, gameplay, audio, no flicker/reset over
+      extended play. **(requires the user to flash output_files/*.rbf on the
+      DE10-Nano — this is the real test of whether the rework cured the
+      instability.)**
+- [ ] 7.4 Optional Stage-6 polish: trim the PLL to a single 98.304 output (clk_sys
+      is still generated for the framework audio/HPS paths; clk_sub/clk_main are
+      now unused and pruned). Update CLAUDE.md clock map.
 
 ---
 
