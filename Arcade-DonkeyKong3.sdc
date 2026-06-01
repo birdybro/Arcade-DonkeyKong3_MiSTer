@@ -1,27 +1,17 @@
 derive_pll_clocks
 derive_clock_uncertainty
 
-# Relax 4 MHz / 24 MHz -> 21.477 MHz crossings into the sound subsystem to one
-# clk_sub period. The 2-flop syncs in dkong3_sound.v don't need cycle-accurate
-# capture; the source (Z80 DO, VBlank, 4E_Q strobes) is held stable for many
-# clk_sub periods before the receiver consumes it.
-
-set sync_max 46.5
-
-# Z80 DO -> data sync
-set_max_delay -from [get_registers {*Z80IP:CPU|T80as:z80core|T80:u0|DO[*]}] \
-              -to   [get_registers {*dkong3_sound:sound|I_MCPU_DO_S1[*]}] $sync_max
-
-# VBlank -> sub-CPU NMI sync
-set_max_delay -to [get_registers {*dkong3_sound:sound|I_SUB_NMIn_S1}] $sync_max
-
-# 4E_Q latch strobes -> 3-flop strobe syncs
-set_max_delay -to [get_registers {*dkong3_sound:sound|*q0_s1*}] $sync_max
-set_max_delay -to [get_registers {*dkong3_sound:sound|*q1_s1*}] $sync_max
-set_max_delay -to [get_registers {*dkong3_sound:sound|*q2_s1*}] $sync_max
-
-# Reset deassertion synchronizers in dkong3_top (clk_sys reset -> clk_main /
-# clk_sub). Async-assert is intentional; recovery against the cross-PLL
-# common-period window is not a real path.
-set_false_path -to [get_registers {*dkong3_top:dkong3|cpu_resetn_s1}]
-set_false_path -to [get_registers {*dkong3_top:dkong3|sub_resetn_s1}]
+# Clock rework: the entire core now runs in a single clock domain (the 98.304 MHz
+# `clk`, PLL outclk_0). The legacy cross-PLL CDC band-aids (4/24 MHz -> 21.477 MHz
+# sound syncs, clk_sys -> clk_main/clk_sub reset deassertion false_paths) are gone
+# because those domains no longer exist.
+#
+# Many registers advance only on a clock-enable far slower than 98.304 MHz, so
+# their data paths are genuine multicycle paths. Constrain them with evidence
+# from the timing report (added below as needed). NOTE: keep these in sync with
+# clk_en.v if the enable cadence changes.
+#
+#   cen_cpu  (Z80)      ~4.000 MHz  -> ~24 clk multicycle
+#   cen_snd  (2A03)    ~21.477 MHz  -> ~4  clk multicycle
+#   cen_o_clk (12.288) /8 of master -> ~8  clk multicycle (video/RAM)
+#   cen_24m   (24.576) /4 of master -> ~4  clk multicycle

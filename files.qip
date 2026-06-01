@@ -27,4 +27,17 @@ set_global_assignment -name VERILOG_FILE rtl/dkong3_sub.v
 set_global_assignment -name VERILOG_FILE rtl/dkong3_video.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/apu.sv
 set_global_assignment -name VHDL_FILE rtl/dpram.vhd
+# --- synchronous clock-rework modules (single 98.304 MHz clk + clock-enables) ---
+set_global_assignment -name VERILOG_FILE rtl/dkong3_hv_count_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_vram_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_obj_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_col_pal_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_video_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_adec_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_dma_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_input_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_main_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_sub_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_sound_sync.v
+set_global_assignment -name VERILOG_FILE rtl/dkong3_top_sync.v
 set_global_assignment -name SYSTEMVERILOG_FILE "Arcade-DonkeyKong3.sv"

@@ -26,7 +26,8 @@ module clk_en
    output reg   cen_12m_n,  // 12.288 MHz, phase 4   (replaces negedge 12M)
 
    // Fractional (NCO) enables for rates not harmonic with 98.304.
-   output reg   cen_cpu,    // 4.000 MHz exact  (replaces clk_main / Z80)
+   output reg   cen_cpu,    // 4.000 MHz exact  (replaces clk_main / Z80 posedge)
+   output reg   cen_cpu_n,  // 4.000 MHz, ~half-period offset (replaces negedge clk_main: DMA, W_2D2_Q)
    output reg   cen_snd     // ~21.477 MHz      (replaces clk_sub / 2A03 base)
 );
 
@@ -37,6 +38,9 @@ reg [2:0] phase;
 localparam [11:0] CPU_INC = 12'd125;
 localparam [11:0] CPU_MOD = 12'd3072;
 reg [11:0] acc_cpu;
+// second CPU NCO, accumulator offset by half the modulo, so cen_cpu_n falls
+// ~half a 4 MHz period after cen_cpu (the legacy negedge of the 4 MHz clock).
+reg [11:0] acc_cpu_n;
 
 // --- sound NCO: ~21.4773 MHz (power-of-2 accumulator; carry-out = enable) ---
 // 229094/2^20 * 98.304 MHz = 21.4773 MHz (target NES master 21.477272 MHz).
@@ -47,12 +51,14 @@ always @(posedge clk) begin
    if (rst) begin
       phase     <= 3'd0;
       acc_cpu   <= 12'd0;
+      acc_cpu_n <= 12'd1536;   // half of CPU_MOD -> half-period offset
       acc_snd   <= 20'd0;
       cen_24m_p <= 1'b0;
       cen_24m_n <= 1'b0;
       cen_12m_p <= 1'b0;
       cen_12m_n <= 1'b0;
       cen_cpu   <= 1'b0;
+      cen_cpu_n <= 1'b0;
       cen_snd   <= 1'b0;
    end else begin
       phase     <= phase + 3'd1;
@@ -70,6 +76,15 @@ always @(posedge clk) begin
       end else begin
          acc_cpu <= acc_cpu + CPU_INC;
          cen_cpu <= 1'b0;
+      end
+
+      // CPU NCO, half-period offset -> negedge-4 MHz equivalent.
+      if (acc_cpu_n + CPU_INC >= CPU_MOD) begin
+         acc_cpu_n <= acc_cpu_n + CPU_INC - CPU_MOD;
+         cen_cpu_n <= 1'b1;
+      end else begin
+         acc_cpu_n <= acc_cpu_n + CPU_INC;
+         cen_cpu_n <= 1'b0;
       end
 
       // Sound NCO (2^20 wrap -> carry-out is the enable).

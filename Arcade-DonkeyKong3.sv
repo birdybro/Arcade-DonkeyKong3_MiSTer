@@ -262,14 +262,14 @@ wire clk_rst = clk_rst_sync[1];
 
 // Clock-enable generator: every former clock becomes one of these enables.
 // Unused until the per-subsystem conversions (Stages 2-5) consume them.
-wire cen_24m_p, cen_24m_n, cen_12m_p, cen_12m_n, cen_cpu, cen_snd;
+wire cen_24m_p, cen_24m_n, cen_12m_p, cen_12m_n, cen_cpu, cen_cpu_n, cen_snd;
 clk_en clk_en_inst
 (
    .clk(clk),
    .rst(clk_rst),
    .cen_24m_p(cen_24m_p), .cen_24m_n(cen_24m_n),
    .cen_12m_p(cen_12m_p), .cen_12m_n(cen_12m_n),
-   .cen_cpu(cen_cpu),     .cen_snd(cen_snd)
+   .cen_cpu(cen_cpu),     .cen_cpu_n(cen_cpu_n), .cen_snd(cen_snd)
 );
 
 ///////////////////////////////////////////////////
@@ -437,12 +437,15 @@ reg reset;
 always @(posedge clk_sys)
   reset = RESET | status[0] | buttons[1];
 
-dkong3_top dkong3
+dkong3_top_sync dkong3
 (
-   .I_CLK_24M(clk_sys),
-   .I_CLK_4M(clk_main),
-   .I_SUBCLK(clk_sub),
-   .I_RESETn(~reset),
+   .clk(clk),
+   .cen_24m_p(cen_24m_p),
+   .cen_24m_n(cen_24m_n),
+   .cen_cpu(cen_cpu),
+   .cen_cpu_n(cen_cpu_n),
+   .cen_snd(cen_snd),
+   .I_RESETn(~clk_rst),
 
    .I_SW1(m_sw1),
    .I_SW2(m_sw2),
