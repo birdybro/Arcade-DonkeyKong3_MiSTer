@@ -78,9 +78,13 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 > take these clean enables (no cross-module edge-detect/skew). `cen_24m_n` (from
 > clk_en) covers negedge-24M logic.
 
-- [ ] 3.0 Shared memory primitives → synchronous: `ram_1024_8`/`ram_2048_8`
-      (dkong3_bram.v) and the clocked PROM/ROM (dkong3_roms.v) gated by clk+cen,
-      registered-read per `30-...md` §3 (pick RDW mode explicitly; diff-verify).
+- [x] 3.0 (de-risked) Shared `dpram`-based RAMs need **NO rewrite**: `dpram` maps
+      `enable_a → altsyncram clocken0` (the dedicated clock-enable) with async read.
+      A consumer converts by driving `clock=clk` and `enable = orig_CE & cen` —
+      e.g. vram RAM: `clock_a=clk`, `enable_a = ~W_vram_CS & cen_o_clk_p`. The
+      inferred-RAM ROMs (dkong3_roms.v `posedge CLK0; DO<=core[AD]`) clock on `clk`;
+      add `if(cen)` on the read register (or accept faster-but-stable read sampled
+      at cen ticks). Compare in diff TBs only at cen ticks.
 - [ ] 3.1 `dkong3_vram_sync.v`: RAM on `cen_o_clk_p`; COL PROM / VID ROM on
       `cen_o_clk_n`; negedge-24M COL latch → `cen_24m_n`; reg_4P/4N shift regs →
       `cen_hcnt0_p`; W_VRAMBUSY (was `posedge H_CNT[2] / negedge H_CNT[9]`) →
