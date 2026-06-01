@@ -108,9 +108,21 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
       shared ROM download + VRAM write sweep, LFSR-randomized CPU/scan/flip/offset
       stimulus, compare O_DB/O_COL/O_VID/O_VRAMBUSYn/O_ESBLKn at quiet phase.
       **2,000,005 checks, 0 mismatches.** `make regress` ALL PASS.
-- [ ] 3.2 `dkong3_obj_sync.v` (largest): register/gated clocks `W_5F2_Q[0/2]`,
-      `CLK_3E/4L/5L`, `posedge I_H_CNT[6]`, `negedge I_H_CNT[9]`, both edges of
-      24M/12M → decoded CENs. + `tb/diff/obj_diff`.
+- [x] 3.2 `dkong3_obj_sync.v` (largest): every fabric clock → decoded enable.
+      negedge-24M flops (W_5B/W_5F2_Q/CLK_4L/CLK_3E/W_HD) → `cen_24m_n`; 12M
+      flops (W_6N/W_6M/W_7H/W_6K/reg_8CD/8EF/OBJ_ROM) → `cen_o_clk_p/n`;
+      `negedge H_CNT[9]` (W_VFC_CNT) → `cen_hcnt9_n`; gated clock `CLK_5L`
+      reproduced as a combinational level (7M-RAM write-enable) + `cen_o_clk_n`
+      posedge strobe (W_5L_Q counter); `CLK_4L`/`CLK_3E` register-clocks →
+      next-value rising-edge strobes; async resets (`RST_4L`, W_5L_RST, U_8N)
+      → H_CNT[9]-level resets. Register-as-clock captures whose data updates on
+      the same negedge-24M edge (W_8H_Q←W_5F2_Q[0], W_6J_Q←W_5F2_Q[2],
+      U_8N, W_3E_Q) use a one-clk-delayed strobe to reproduce the original's
+      post-edge (clk-to-Q-delayed) data capture. New `OBJ_ROM_CE`/`DLROM_CE`.
+      O_CLK is taken as a *level* (I_OCLK) for the gated-clock decodes.
+- [x] 3.2b `tb/diff/obj_diff`: golden hv_count+obj vs sync, DMA-filled OBJ RAM +
+      loaded OBJ ROMs, free-running engine over multiple frames incl.
+      flip-screen/offsets/2PSL/CMPBLK variations. **6,800,000 checks, 0 mismatches.**
 - [ ] 3.3 `dkong3_col_pal_sync.v`: `I_CLK_6M`(=H_CNT[0]) → `cen_hcnt0_p`; the
       self-resetting latch `W_1B2C_RST = I_CMPBLKn | W_1B2C_Q[0]` → synchronous
       equivalent. + `tb/diff/col_pal_diff`.

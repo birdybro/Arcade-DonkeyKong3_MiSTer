@@ -207,6 +207,48 @@ assign O_DATA = (I_CE[0] == 1'b0 & I_OE == 1'b0) ? dt7b :
 
 endmodule
 
+//------------------------------------
+// Object/Sprite ROMs 7C,7D,7E,7F.
+// Clock-enable variant (clk + cen) for the rework. Same content/decode as
+// OBJ_ROM; read register gated by `cen` (= posedge O_CLK strobe).
+//------------------------------------
+
+module OBJ_ROM_CE
+(
+   input          clk,
+   input          cen,
+   input    [11:0]I_ADDR,
+   input          I_CE,
+   output   [31:0]O_DATA,
+
+   input          I_DLCLK,
+   input    [16:0]I_DLADDR,
+   input     [7:0]I_DLDATA,
+   input          I_DLWR
+);
+
+wire [7:0] dt7c, dt7d, dt7e, dt7f;
+
+DLROM_CE #(12,8) objrom7c(clk, cen, I_ADDR, dt7c,
+                          I_DLCLK, I_DLADDR[11:0], I_DLDATA,
+                          I_DLWR & (I_DLADDR[16:12]==5'b0_1010));
+
+DLROM_CE #(12,8) objrom7d(clk, cen, I_ADDR, dt7d,
+                          I_DLCLK, I_DLADDR[11:0], I_DLDATA,
+                          I_DLWR & (I_DLADDR[16:12]==5'b0_1011));
+
+DLROM_CE #(12,8) objrom7e(clk, cen, I_ADDR, dt7e,
+                          I_DLCLK, I_DLADDR[11:0], I_DLDATA,
+                          I_DLWR & (I_DLADDR[16:12]==5'b0_1100));
+
+DLROM_CE #(12,8) objrom7f(clk, cen, I_ADDR, dt7f,
+                          I_DLCLK, I_DLADDR[11:0], I_DLDATA,
+                          I_DLWR & (I_DLADDR[16:12]==5'b0_1101));
+
+assign O_DATA = (I_CE == 1'b0) ? {dt7c,dt7d,dt7e,dt7f} : 32'h0000;
+
+endmodule
+
 //----------------=-------------------
 // Object/Sprite ROMs 7C,7D,7E,7F.
 // OEn tied to ground. CEn is common.
