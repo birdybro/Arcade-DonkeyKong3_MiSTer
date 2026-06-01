@@ -56,10 +56,20 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done
 
 ## Stage 2 — H/V counter & video timing
 
-- [ ] 2.1 `dkong3_hv_count.v`: one counter on `cen_24m_p`; expose H/V counts + decoded `cen_o_clk`/`cen_v_clk`; remove `posedge O_CLK`/`posedge V_CLK`.
-- [ ] 2.2 `tb/diff/hv_count_diff`: H/V counts, blank/sync edges match original bit-for-bit.
-- [ ] 2.3 `dkong3_video.v` wiring to master domain.
-- [ ] 2.4 Build + golden video trace match; `make regress` green.
+> INTEGRATION NOTE (found during 2.1): `hv_count`'s `O_CLK` (12.288 MHz) is
+> consumed **as a clock** by vram, obj, adec, and the main RAMs, so `hv_count`
+> cannot be *integrated* alone — it integrates with that whole 24.576/12.288
+> group. Per-module `_sync` conversions are written + diff-verified **in
+> isolation** (cleanly stageable), then the coupled group is swapped into
+> `dkong3_top` atomically. Revised unit grouping in Stage 3.
+
+- [x] 2.1 `rtl/dkong3_hv_count_sync.v`: one counter on `cen_24m_p`; ripple
+      `O_CLK`/`V_CLK` clocks → decoded enables (`cen_o_clk_p/n`, internal vclk
+      edge). Bit-identical behavior.
+- [x] 2.2 `tb/diff/hv_count_diff` flipped to golden(24.576) vs sync(clk+cen):
+      13.5M checks, 0 mismatches (incl. flip-screen + H/V offsets). PASS.
+- [ ] 2.3 Integrate with the video/main group (see Stage 3) — deferred to group swap.
+- [ ] 2.4 Build + golden video trace match; `make regress` green (at group integration).
 
 ## Stage 3 — VRAM, OBJ, colour palette
 
