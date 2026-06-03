@@ -29,6 +29,7 @@ set_global_assignment -name VERILOG_FILE rtl/dkong3_video.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/apu.sv
 set_global_assignment -name VHDL_FILE rtl/dpram.vhd
 # --- synchronous clock-rework modules (single 98.304 MHz clk + clock-enables) ---
+set_global_assignment -name VERILOG_FILE rtl/tdp_ram.v
 set_global_assignment -name VERILOG_FILE rtl/dkong3_hv_count_sync.v
 set_global_assignment -name VERILOG_FILE rtl/dkong3_vram_sync.v
 set_global_assignment -name VERILOG_FILE rtl/dkong3_obj_sync.v

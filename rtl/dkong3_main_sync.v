@@ -183,23 +183,25 @@ wire  [7:0]W_MRAM7H_DO = (~W_MRAM_CS_n[1] & ~W_MCPU_RDn) ? W_7H_DOA_raw : 8'h00;
 wire  [7:0]W_DMAS_D_raw;
 wire  [7:0]W_DMAS_D = (W_DMAS_CE & 1'b1) ? W_DMAS_D_raw : 8'h00;                 // O_DB (I_OEB=1)
 
-dpram #(11,8) U_7H
+// Inferred TDP RAM (not altsyncram): CPU port @ cen_o_clk_n + DMA-read port @
+// cen_o_clk_p are two different clock-enables on the one master clk; needs
+// predictable M10K behaviour. See rtl/tdp_ram.v.
+tdp_ram #(11,8) U_7H
 (
+   .clk     (clk),
    // A Port - CPU (was ~I_CLK_12M = negedge O_CLK)
-   .clock_a   (clk),
-   .address_a (W_MCPU_A[10:0]),
-   .data_a    (WI_D),
-   .enable_a  (~W_MRAM_CS_n[1] & cen_o_clk_n),
-   .wren_a    (~W_MCPU_WRn),
-   .q_a       (W_7H_DOA_raw),
+   .addr_a  (W_MCPU_A[10:0]),
+   .data_a  (WI_D),
+   .en_a    (~W_MRAM_CS_n[1] & cen_o_clk_n),
+   .we_a    (~W_MCPU_WRn),
+   .q_a     (W_7H_DOA_raw),
 
    // B Port - DMA read (was I_CLK_12M = posedge O_CLK)
-   .clock_b   (clk),
-   .address_b (W_DMAS_A),
-   .data_b    (8'h00),
-   .enable_b  (W_DMAS_CE & cen_o_clk_p),
-   .wren_b    (1'b0),
-   .q_b       (W_DMAS_D_raw)
+   .addr_b  (W_DMAS_A),
+   .data_b  (8'h00),
+   .en_b    (W_DMAS_CE & cen_o_clk_p),
+   .we_b    (1'b0),
+   .q_b     (W_DMAS_D_raw)
 );
 
 //------------------------------------------

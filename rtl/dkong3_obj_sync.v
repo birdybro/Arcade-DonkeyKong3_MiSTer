@@ -112,23 +112,24 @@ wire   [7:0]WO_DB;
 wire   [9:0]W_OBJ_AB = {I_2PSL, I_H_CNT[8:0]};
 wire   [7:0]W_OBJ_DI;
 
-dpram #(10,8) U_6PR
+// Inferred TDP RAM (not altsyncram): two different clock-enables on the one
+// master clk (write @ cen_o_clk_n, read @ cen_o_clk_p) need predictable M10K
+// behaviour. See rtl/tdp_ram.v.
+tdp_ram #(10,8) U_6PR
 (
+   .clk     (clk),
    // A Port - DMA write (was ~I_CLK_12M = negedge O_CLK)
-   .clock_a   (clk),
-   .address_a (I_OBJ_DMA_A),
-   .data_a    (I_OBJ_DMA_D),
-   .enable_a  (I_OBJ_DMA_CE & cen_o_clk_n),
-   .wren_a    (1'b1),
-   .q_a       (),
-
+   .addr_a  (I_OBJ_DMA_A),
+   .data_a  (I_OBJ_DMA_D),
+   .en_a    (I_OBJ_DMA_CE & cen_o_clk_n),
+   .we_a    (1'b1),
+   .q_a     (),
    // B Port - scan read (was I_CLK_12M = posedge O_CLK)
-   .clock_b   (clk),
-   .address_b (W_OBJ_AB),
-   .data_b    (8'h00),
-   .enable_b  (cen_o_clk_p),
-   .wren_b    (1'b0),
-   .q_b       (W_OBJ_DI)
+   .addr_b  (W_OBJ_AB),
+   .data_b  (8'h00),
+   .en_b    (cen_o_clk_p),
+   .we_b    (1'b0),
+   .q_b     (W_OBJ_DI)
 );
 
 //-------  AB CONTROL  ------------------------------------------------

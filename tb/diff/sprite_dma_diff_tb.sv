@@ -103,9 +103,12 @@ module sprite_dma_diff_tb;
 
   // ---- scoreboard (quiet phase mc==4) ----
   int sb_errors = 0, sb_checks = 0;
+  int g_nz = 0, d_nz = 0;   // count non-zero sprite-pixel outputs (visibility)
   always @(posedge clk) if (compare_en && rst_n && mc == 4'd4) begin
     `SB_CHECK("O_OBJ_DO",    g_objdo, d_objdo)
     `SB_CHECK("O_L_CMPBLKn", g_lcb,   d_lcb)
+    if (g_objdo[1:0] != 2'b00) g_nz++;   // sprite pixel present (col_pal shows it)
+    if (d_objdo[1:0] != 2'b00) d_nz++;
   end
 
   function [7:0] rom_data(input [17:0] a); rom_data = a[7:0]^a[15:8]^8'hA5; endfunction
@@ -139,6 +142,7 @@ module sprite_dma_diff_tb;
       repeat (140000) @(posedge clk);
     end
 
+    $display("  sprite-visibility: golden non-zero O_OBJ_DO = %0d, sync = %0d (of %0d checks)", g_nz, d_nz, sb_checks);
     `SB_REPORT("sprite_dma_diff")
   end
 

@@ -44,7 +44,7 @@ $(eval $(call define_vtest,hv_count_diff,diff/hv_count_diff_tb.sv,$(RTL)/dkong3_
 # Coupled video timing group: hv_count(+sync) + vram(+sync) + shared ROMs/RAM.
 $(eval $(call define_vtest,vram_diff,diff/vram_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v $(RTL)/dkong3_vram.v $(RTL)/dkong3_vram_sync.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
 
-$(eval $(call define_vtest,obj_diff,diff/obj_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v $(RTL)/dkong3_obj.v $(RTL)/dkong3_obj_sync.v $(RTL)/dkong3_logic.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
+$(eval $(call define_vtest,obj_diff,diff/obj_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v $(RTL)/dkong3_obj.v $(RTL)/dkong3_obj_sync.v $(RTL)/tdp_ram.v $(RTL)/dkong3_logic.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
 
 $(eval $(call define_vtest,col_pal_diff,diff/col_pal_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v $(RTL)/dkong3_col_pal.v $(RTL)/dkong3_col_pal_sync.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
 
@@ -52,7 +52,7 @@ $(eval $(call define_vtest,col_pal_diff,diff/col_pal_diff_tb.sv,$(RTL)/dkong3_hv
 VIDEO_RTL := $(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v \
              $(RTL)/dkong3_video.v $(RTL)/dkong3_video_sync.v \
              $(RTL)/dkong3_vram.v $(RTL)/dkong3_vram_sync.v \
-             $(RTL)/dkong3_obj.v $(RTL)/dkong3_obj_sync.v \
+             $(RTL)/dkong3_obj.v $(RTL)/dkong3_obj_sync.v $(RTL)/tdp_ram.v \
              $(RTL)/dkong3_col_pal.v $(RTL)/dkong3_col_pal_sync.v \
              $(RTL)/dkong3_logic.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv
 $(eval $(call define_vtest,video_diff,diff/video_diff_tb.sv,$(VIDEO_RTL)))
@@ -66,7 +66,7 @@ $(eval $(call define_vtest,adec_diff,diff/adec_diff_tb.sv,$(RTL)/dkong3_adec.v $
 $(eval $(call define_vtest,sound_diff,diff/sound_diff_tb.sv,$(RTL)/dkong3_sound.v $(RTL)/dkong3_sound_sync.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
 
 # Full sprite path with live per-frame DMA refresh of OBJ RAM (integration).
-$(eval $(call define_vtest,sprite_dma_diff,diff/sprite_dma_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v $(RTL)/dkong3_obj.v $(RTL)/dkong3_obj_sync.v $(RTL)/dkong3_dma.v $(RTL)/dkong3_dma_sync.v $(RTL)/dkong3_logic.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
+$(eval $(call define_vtest,sprite_dma_diff,diff/sprite_dma_diff_tb.sv,$(RTL)/dkong3_hv_count.v $(RTL)/dkong3_hv_count_sync.v $(RTL)/dkong3_obj.v $(RTL)/dkong3_obj_sync.v $(RTL)/tdp_ram.v $(RTL)/dkong3_dma.v $(RTL)/dkong3_dma_sync.v $(RTL)/dkong3_logic.v $(RTL)/dkong3_bram.v $(RTL)/dkong3_roms.v $(TBC)/dpram.sv))
 
 # ---- GHDL (VHDL cores) -----------------------------------------------------
 GHDL ?= ghdl
